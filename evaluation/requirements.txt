@@ -1,0 +1,10 @@
+torch
+torchvision
+torchmetrics[multimodal, image]
+piq
+transformers
+opencv-python
+numpy
+Pillow
+tqdm
+requests

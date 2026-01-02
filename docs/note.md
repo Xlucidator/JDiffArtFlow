@@ -128,3 +128,20 @@ sudo chown -R $USER:$USER .
 ```
 export HF_ENDPOINT=https://hf-mirror.com
 ```
+
+## 测评环境
+
+docker外宿主机上新建环境
+
+```bash
+conda create -n jdiff_eval python=3.9 -y
+conda activate jdiff_eval
+pip install -r requirements.txt
+```
+
+运行测评
+```bash
+python score_api.py \
+  --upload_path ../../JDiffusion/examples/dreambooth/output \
+  --result_path ../../outputs/scores
+```
