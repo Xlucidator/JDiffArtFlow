@@ -15,7 +15,7 @@ def get_score(upload_path, result_path):
     # ref_images = {}
 
     ref_style_numbers = 15
-    A_ref_gt_path = "../A_gt"
+    A_ref_gt_path = "../../data/A_gt"
     # A_ref_gt_prompts_path = os.path.join(A_ref_gt_path, "prompts.json")
     # load prompts
     # with open(A_ref_gt_prompts_path, 'r') as f:

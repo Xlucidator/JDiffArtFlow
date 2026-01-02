@@ -54,8 +54,8 @@ enter_container() {
         start_container
     fi
     echo "root@container:~$ 进入容器工作环境 (输入 exit 退出)..."
-    docker exec -it $CONTAINER_NAME /bin/bash
-    # docker exec -it $CONTAINER_NAME /bin/bash -c "exec /bin/bash --rcfile <(echo '. ~/.bashrc; source /root/anaconda3/etc/profile.d/conda.sh; conda activate jdiffusion; cd /workspace')"
+    # docker exec -it $CONTAINER_NAME /bin/bash
+    docker exec -it $CONTAINER_NAME /bin/bash -c "exec /bin/bash --rcfile <(echo '. ~/.bashrc; source /root/anaconda3/etc/profile.d/conda.sh; conda activate jdiffusion; cd /workspace')"
 }
 
 # 3. 停止容器
