@@ -11,6 +11,19 @@ from PIL import Image
 import numpy as np
 
 
+class NumpyEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, (np.int_, np.intc, np.intp, np.int8,
+                            np.int16, np.int32, np.int64, np.uint8,
+                            np.uint16, np.uint32, np.uint64)):
+            return int(obj)
+        elif isinstance(obj, (np.float_, np.float16, np.float32, np.float64)):
+            return float(obj)
+        elif isinstance(obj, (np.ndarray,)):
+            return obj.tolist()
+        return json.JSONEncoder.default(self, obj)
+
+
 def get_score(upload_path, result_path):
     # ref_images = {}
 
@@ -74,11 +87,12 @@ def get_score(upload_path, result_path):
         "dino_score": dino_scores_summary['total'],
         'hist_score': hist_scores_summary['total'], 'fid_score': fid_score,'lpip_score': lpip_score['total'],
         'clip_iqa_score':clip_iqa_score_summary['total'],
-        'clip_r_score':clip_r_score,'clip_r_scores':clip_r_scores}
+        'clip_r_score':clip_r_score,'clip_r_scores':clip_r_scores
+    }
     
     os.makedirs(result_path, exist_ok=True)
     with open(os.path.join(result_path, "result.json"), 'w') as f:
-        json.dump(result, f)
+        json.dump(result, f, indent=4, cls=NumpyEncoder, sort_keys=True)
 
     return {
         # "clip_score": clip_scores_summary['total'],
@@ -257,6 +271,19 @@ def get_clip_iqa_score(upload_img_paths):
     # clip_iqa_scores['total'] = np.mean([score for score in clip_iqa_scores.values()])
     return clip_iqa_summary, clip_iqa_scores
 
+
+def print_in_format(result):
+    print("\n" + "="*50)
+    print(f"{'METRIC NAME':<25} | {'SCORE':<15}")
+    print("-" * 50)
+
+    for key, value in result.items():
+        val_float = float(value) if isinstance(value, (np.floating, float)) else value
+        print(f"{key:<25} | {val_float:.6f}")
+    
+    print("="*50 + "\n")
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     # upload path result path
@@ -269,6 +296,6 @@ if __name__ == '__main__':
     import time
     start_time = time.time()
     res = get_score(upload_path, result_path)
-    print(res)
+    print_in_format(res)
     print("time: ", time.time() - start_time)
     # print(get_clip_scores(upload_images))

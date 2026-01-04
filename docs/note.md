@@ -5,6 +5,8 @@
 pip install torch==2.0.0 torchvision --index-url https://download.pytorch.org/whl/cpu
 ```
 
+之后会有各种细节报错，要各种调整代码，感觉不太对；用提供的Docker就没问题
+
 
 ## Docker环境配置
 
@@ -101,7 +103,7 @@ exit # 退出容器 或 Ctrl + D
 ```bash
 git clone https://gitclone.com/github.com/JittorRepos/JDiffusion.git
 # 插入 gitclone.com 使用国内镜像站
-# 但还是好慢，不用了
+# 但还是好慢，不用了，直接容器外clone就好
 ```
 
 jdiffusion容器内的环境操作
@@ -125,7 +127,7 @@ sudo chown -R $USER:$USER .
 ```
 
 解决Hugging Face访问网络问题
-```
+```bash
 export HF_ENDPOINT=https://hf-mirror.com
 ```
 

@@ -2,8 +2,8 @@
 export HF_ENDPOINT="https://hf-mirror.com"
 
 MODEL_NAME="Charles-Elena/stable-diffusion-2-1"
-BASE_INSTANCE_DIR="../../../data/train"
-OUTPUT_DIR_PREFIX="style/style_"
+BASE_INSTANCE_DIR="../data/train"
+OUTPUT_DIR_PREFIX="../outputs/style_ckpt/style_"
 RESOLUTION=512
 TRAIN_BATCH_SIZE=1
 GRADIENT_ACCUMULATION_STEPS=1

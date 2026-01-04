@@ -4,7 +4,7 @@ import jittor as jt
 from JDiffusion.pipelines import StableDiffusionPipeline
 
 max_num = 15
-dataset_root = "the-path-to-dataset"
+dataset_root = "../../../data/train"
 
 with jt.no_grad():
     for tempid in tqdm.tqdm(range(0, max_num)):
