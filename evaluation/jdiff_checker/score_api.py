@@ -100,7 +100,7 @@ def get_score(upload_path, result_path):
         'hist_score': hist_scores_summary['total'],
         'fid_score': fid_score,
         'lpip_score': lpip_score['total'],
-        'clip_iqa_score':hist_scores_summary['total'],
+        'clip_iqa_score':clip_iqa_score_summary['total'],
         'clip_r_score':clip_r_score
     }
 
