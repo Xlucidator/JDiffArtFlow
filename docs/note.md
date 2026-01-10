@@ -147,3 +147,39 @@ python score_api.py \
   --upload_path ../../JDiffusion/examples/dreambooth/output \
   --result_path ../../outputs/scores
 ```
+
+## Model
+
+```mermaid
+graph TB
+    subgraph "Input Processing"
+        Img[Style Image] --> VAE
+        Prompt["a photo of <v_style>"] --> TextEnc[Text Encoder]
+        TextEnc --"Learnable Token Embedding"--> Emb[Embeddings]
+    end
+
+    subgraph "UNet (Trainable LoRA)"
+        VAE --Latents--> UNet
+        Emb --CrossAttn--> UNet
+        
+        UNet --"Predict Noise"--> PredNoise
+    end
+
+    subgraph "Loss Calculation"
+        PredNoise --"Reverse Process"--> PredImg[Predicted Image x0]
+        Img --> FeatExt[Feature Extractor]
+        PredImg --> FeatExt
+        
+        FeatExt --"Gram Matrix"--> StyleLoss[Style Loss]
+        PredNoise --"MSE"--> DiffLoss[Diffusion Loss]
+        
+        StyleLoss --> TotalLoss
+        DiffLoss --> TotalLoss
+    end
+
+    TotalLoss -.-> Update[Update LoRA & Token]
+    
+    style TextEnc fill:#ffcccb
+    style UNet fill:#add8e6
+    style StyleLoss fill:#90ee90
+```
