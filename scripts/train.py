@@ -473,6 +473,8 @@ def main(args):
     if args.output_dir is not None:
         os.makedirs(args.output_dir, exist_ok=True)
 
+
+    ############    Engine  ##############
     # Load the tokenizer
     if args.tokenizer_name:
         tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_name, revision=args.revision, use_fast=False)
@@ -521,6 +523,8 @@ def main(args):
     )
     unet.add_adapter(unet_lora_config)
 
+
+    ############    Train    ##############
     # Optimizer creation
 
     optimizer = AdamW(

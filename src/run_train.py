@@ -1,5 +1,5 @@
 import sys
-import os
+import logging
 # sys.path.append(os.path.join(os.path.dirname(os.path.dirname(__file__)), "src"))
 
 import jittor as jt
@@ -11,9 +11,21 @@ from jittor.compatibility.utils.data import DataLoader
 import argparse
 
 
+def setup_logging():
+    import transformers
+    import diffusers
+    logging.basicConfig(
+        format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
+        datefmt="%m/%d/%Y %H:%M:%S",
+        level=logging.INFO,
+    )
+    transformers.utils.logging.set_verbosity_warning()
+    diffusers.utils.logging.set_verbosity_info()
+
 
 def main():
     jt.flags.use_cuda = 1
+    setup_logging()
 
     ### 1. Load Config
     args = parse_args()

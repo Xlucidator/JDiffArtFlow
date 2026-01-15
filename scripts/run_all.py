@@ -6,11 +6,12 @@ import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-n", "--num_styles", type=int, default=15)
+parser.add_argument("-e", "--exp_name", type=str, default=".")
 args = parser.parse_args()
 
 max_num = args.num_styles
 dataset_root = "../data/train"
-outputs_root = "../outputs"
+outputs_root = f"../outputs/{args.exp_name}"
 
 pipe = StableDiffusionPipeline.from_pretrained("Charles-Elena/stable-diffusion-2-1").to("cuda")
 

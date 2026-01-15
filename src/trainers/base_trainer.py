@@ -14,7 +14,7 @@ class BaseTrainer:
         self.config = config
         self.engine = engine
         self.dataloader = dataloader
-        self.project_dir = config.project.output_dir
+        self.project_dir = config.experiment.output_dir
         os.makedirs(self.project_dir, exist_ok=True)
 
         self.optimizer = AdamW(
@@ -24,6 +24,13 @@ class BaseTrainer:
             weight_decay=config.train.adam_weight_decay,
             eps=config.train.adam_epsilon,
         )
+        # self.optimizer = AdamW(
+        #     filter(lambda p: p.requires_grad, self.engine.unet.parameters()),
+        #     lr=float(config.train.learning_rate),
+        #     betas=(float(config.train.adam_beta1), float(config.train.adam_beta2)),
+        #     weight_decay=float(config.train.adam_weight_decay),
+        #     eps=float(config.train.adam_epsilon),
+        # )
 
         self.lr_scheduler = get_scheduler(
             config.train.lr_scheduler,
@@ -34,7 +41,7 @@ class BaseTrainer:
 
 
     def train(self):
-        print(f"***** Starting Training: {self.config.project.name} *****")
+        print(f"***** Starting Training: {self.config.experiment.name} *****")
         global_step = 0
         progress_bar = tqdm(range(self.config.train.max_train_steps), desc="Steps")
 

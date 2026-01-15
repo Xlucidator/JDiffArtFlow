@@ -11,7 +11,7 @@ model:
   rank: 4  # LoRA Rank
 
 data:
-  instance_data_dir: "./data/train/00"
+  instance_data_dir: "./data/train/00/images"
   instance_prompt: "a photo of style_00"
   class_data_dir: null
   class_prompt: null
@@ -22,15 +22,15 @@ data:
 
 train:
   seed: 42
-  learning_rate: 1e-4
+  learning_rate: 1.0e-4
   max_train_steps: 800
   gradient_accumulation_steps: 1
   lr_scheduler: "constant"
   lr_warmup_steps: 0
   adam_beta1: 0.9
   adam_beta2: 0.999
-  adam_weight_decay: 1e-2
-  adam_epsilon: 1e-8
+  adam_weight_decay: 1.0e-2
+  adam_epsilon: 1.0e-8
   max_grad_norm: 1.0
   
   # 算法开关
