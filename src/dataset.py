@@ -41,4 +41,30 @@ class DreamBoothDataset(Dataset):
             instance_image = instance_image.convert("RGB")
         example["instance_images"] = self.image_transforms(instance_image)
 
-        # TODO
+        # Tokenize prompts
+        text_inputs = self.tokenizer(
+            self.instance_prompt,
+            truncation=True,
+            padding="max_length",
+            max_length=self.tokenizer.model_max_length,
+            return_tensors="pt",
+        )
+        example["instance_prompt_ids"] = text_inputs.input_ids
+        example["instance_attention_mask"] = text_inputs.attention_mask
+
+        return example
+
+
+def collate_fn(examples):
+    input_ids = [example["instance_prompt_ids"] for example in examples]
+    pixel_values = [example["instance_images"] for example in examples]
+    attention_mask = [example["instance_attention_mask"] for example in examples]
+
+    pixel_values = jt.stack(pixel_values).float()
+    input_ids = jt.cat(input_ids, dim=0)
+
+    batch = {"input_ids": input_ids, "pixel_values": pixel_values}
+    if attention_mask:
+        batch["attention_mask"] = attention_mask
+
+    return batch

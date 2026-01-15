@@ -59,5 +59,5 @@ class DiffusionEngine:
         self.unet.add_adapter(unet_lora_config)
 
         for name, param in self.unet.named_parameters():
-             if "lora" in name:
-                 param.requires_grad = True
+            if "lora" in name:
+                param.requires_grad = True
