@@ -9,7 +9,8 @@ def compute_final_score(metrics):
     args:
         - metrics (dict): containing 'dino_score', 'lpip_score', 'clip_r_score', 'fid_score', 'clip_iqa_score'
     returns:
-        - final_score (float): the final score
+        - final_score (float): the final score formula:
+          [DinoV2 * 0.2 + Pixel-Hist * 0.4 + (1-LPIPS) * 0.4] * [CLIP-R * 0.5 + (20 - min(FID,20)) / 20 * 0.4 + CLIP-IQA * 0.1]
         - components  (dict): calculated values of each component (Style, Text, Quality)
     """
     
@@ -18,6 +19,7 @@ def compute_final_score(metrics):
     dino = metrics.get('dino_score', 0.0) 
     clip_r = metrics.get('clip_r_score', 0.0)
     clip_iqa = metrics.get('clip_iqa_score', 0.0)
+    hist = metrics.get('hist_score', 0.0)
     
     # low-is-better
     lpips = metrics.get('lpip_score', 1.0)      # 0~1 
@@ -29,21 +31,23 @@ def compute_final_score(metrics):
     # Determined by LPIPS and DinoV2.
     # - Dino : focuses on "semantic/structural layout", 
     # - LPIPS: focuses on "perceptual/texture details", distance metric -> convert to similarity (1 - LPIPS)
-    style_sim_lpip = max(0, 1 - lpips) # Normalize to 0-1
-    style_sim_dino = dino
-    style_component = 0.5 * style_sim_dino + 0.5 * style_sim_lpip
+    term_dino = dino * 0.2
+    term_hist = hist * 0.4
+    term_lpip = max(0, 1 - lpips) * 0.4
+    style_component = term_dino + term_hist + term_lpip
 
     # --- B. Text Consistency ---
     # Directly use CLIP-R (Recall)
-    text_component = clip_r
+    term_clip_r = clip_r * 0.5
+    text_component = term_clip_r
     
     # --- C. Images Quality ---
     # Determined by CLIP-IQA and FID.
-    # - CLIP-IQA: 0~1 aesthetic quality score
     # - FID: distance metric, lower is better, need normalization
-    quality_clip_iaq = clip_iqa
-    quality_fid = 1.0 / (fid + 1.0)
-    quality_component = 0.8 * quality_clip_iaq + 0.2 * quality_fid
+    # - CLIP-IQA: 0~1 aesthetic quality score
+    term_fid = (20 - min(fid, 20)) / 20 * 0.4
+    term_clip_iqa = clip_iqa * 0.1
+    quality_component = term_fid + term_clip_iqa
     
 
     ## === 3. Final Calculation ===
