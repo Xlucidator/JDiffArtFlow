@@ -3,6 +3,9 @@ import argparse
 import os
 import numpy as np
 
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+outputs_path = os.path.join(project_root, "outputs")
+
 def compute_final_score(metrics):
     """
     compute_final_score with the formula: (Style Similarity) × (Text Consistency + Image Quality)
@@ -48,7 +51,7 @@ def compute_final_score(metrics):
     term_fid = (20 - min(fid, 20)) / 20 * 0.4
     term_clip_iqa = clip_iqa * 0.1
     quality_component = term_fid + term_clip_iqa
-    
+
 
     ## === 3. Final Calculation ===
     # Formula: (Style Similarity) × (Text Consistency + Image Quality)
@@ -75,10 +78,11 @@ def print_report(final_score, components):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--result_path", type=str, default="./outputs/baseline/scores")
+    parser.add_argument("-e", "--exp_name", type=str, default=".")
     args = parser.parse_args()
 
-    json_path = os.path.join(args.result_path, "result.json")
+    score_path = os.path.join(outputs_path, args.exp_name, "scores")
+    json_path = os.path.join(score_path, "result.json")
     if not os.path.exists(json_path):
         print(f"Error: Cannot find json path {json_path}")
         exit(1)

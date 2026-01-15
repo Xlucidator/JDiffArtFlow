@@ -2,8 +2,13 @@ import json, os, tqdm, shutil
 os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
 import jittor as jt
 from JDiffusion.pipelines import StableDiffusionPipeline
+import argparse
 
-max_num = 15
+parser = argparse.ArgumentParser()
+parser.add_argument("-n", "--num_styles", type=int, default=15)
+args = parser.parse_args()
+
+max_num = args.num_styles
 dataset_root = "../data/train"
 outputs_root = "../outputs"
 

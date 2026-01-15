@@ -1,6 +1,7 @@
 import os
 import subprocess
 import sys
+import argparse
 
 os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
 # os.environ["HF_HUB_OFFLINE"] = "1"
@@ -10,11 +11,19 @@ eval_dir = os.path.dirname(current_script_path)
 project_root = os.path.dirname(eval_dir)
 outputs_dir = os.path.join(project_root, "outputs")
 
-def run_evaluation():
+def parse_args():
+    parser = argparse.ArgumentParser(description="Run Evaluation Script")
+    parser.add_argument("-e", "--exp_name", type=str, default=".")
+    parser.add_argument("-n", "--num_styles", type=int, default=15)
+    return parser.parse_args()
+
+
+def run_evaluation(exp_name, num_styles):
     checker_dir = os.path.join(eval_dir, "jdiff_checker")
     script_name = "score_api.py"
-    upload_path = os.path.join(outputs_dir, "generate")
-    result_path = os.path.join(outputs_dir, "scores")
+    exp_path = os.path.join(outputs_dir, exp_name)
+    upload_path = os.path.join(exp_path, "generate")
+    scores_path = os.path.join(exp_path, "scores")
 
     print(f"[Launcher] Begin to run evaluation...")
     print(f"   - working dir: {checker_dir}")
@@ -34,16 +43,18 @@ def run_evaluation():
         sys.executable,
         script_name,
         "--upload_path", upload_path,
-        "--result_path", result_path
+        "--result_path", scores_path,
+        "--ref_style_numbers", str(num_styles)
     ]
 
     try:
         subprocess.run(cmd, cwd=checker_dir, check=True)
-        print(f"[Launcher] Evaluation completed successfully. saved to {result_path}")
+        print(f"[Launcher] Evaluation completed successfully. saved to {scores_path}")
     except subprocess.CalledProcessError as e:
         print(f"[Launcher] Evaluation failed with error: {e}")
     except Exception as e:
         print(f"[Launcher] An unexpected error occurred: {e}")
 
 if __name__ == "__main__":
-    run_evaluation()
+    args = parse_args()
+    run_evaluation(args.exp_name, args.num_styles)

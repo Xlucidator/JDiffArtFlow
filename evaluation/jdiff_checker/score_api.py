@@ -24,10 +24,10 @@ class NumpyEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, obj)
 
 
-def get_score(upload_path, result_path):
+def get_score(upload_path, result_path, ref_style_numbers=15):
     # ref_images = {}
 
-    ref_style_numbers = 15
+    # ref_style_numbers = 1  # change to argmuents
     A_ref_gt_path = "../../data/A_gt"
     # A_ref_gt_prompts_path = os.path.join(A_ref_gt_path, "prompts.json")
     # load prompts
@@ -289,13 +289,15 @@ if __name__ == '__main__':
     # upload path result path
     parser.add_argument('--upload_path', type=str)
     parser.add_argument('--result_path', type=str)
+    parser.add_argument("--ref_style_numbers", type=int, default=15)
     args = parser.parse_args()
     upload_path = args.upload_path
     result_path = args.result_path
+    ref_style_numbers = args.ref_style_numbers
 
     import time
     start_time = time.time()
-    res = get_score(upload_path, result_path)
+    res = get_score(upload_path, result_path, ref_style_numbers)
     print_in_format(res)
     print("time: ", time.time() - start_time)
     # print(get_clip_scores(upload_images))
