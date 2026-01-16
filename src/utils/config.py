@@ -15,12 +15,20 @@ def get_project_root():
     return current_file_path.parent
 
 
-def load_config(config_file):
+def load_config(config_input):
+    '''
+    Load configuration from a YAML file or dictionary and convert it to a SimpleNamespace.
+    '''
     project_root = get_project_root()
 
-    config_path = project_root / "configs" / config_file
-    with open(config_path, 'r') as f:
-        config_dict = yaml.safe_load(f)
+    if isinstance(config_input, str):
+        config_path = project_root / "configs" / config_input
+        with open(config_path, 'r') as f:
+            config_dict = yaml.safe_load(f)
+    elif isinstance(config_input, dict):
+        config_dict = config_input
+    else:
+        raise ValueError(f"load_config expected str or dict, got {type(config_input)}")
 
     def dict_to_namespace(d):
         if isinstance(d, dict):
@@ -45,9 +53,9 @@ def smart_convert_str_to_num(str_value):
     """ attemp to convert string to number (int or float).
     Examples:
         1. "1e-4" -> 0.0001 (float)
-    2. "100" -> 100 (int)
-    3. "00" -> "00" (reserved as string, to prevent ID from being converted to 0)
-    4. "/path/to/file" -> reserved as string
+        2. "100" -> 100 (int)
+        3. "00" -> "00" (reserved as string, to prevent ID from being converted to 0)
+        4. "/path/to/file" -> reserved as string
     """
     if not isinstance(str_value, str):
         return str_value

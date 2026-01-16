@@ -44,6 +44,8 @@ class DreamBoothDataset(Dataset):
             transform.ImageNormalize([0.5], [0.5]),
         ])
 
+        print(f"  Num examples = {len(self)}")
+
 
     def __len__(self):
         return self._length
@@ -105,6 +107,7 @@ def collate_fn(examples):
 
     batch = {"input_ids": input_ids, "pixel_values": pixel_values}
     if has_attention_mask:
+        # attention_mask = jt.cat(attention_mask, dim=0)
         batch["attention_mask"] = attention_mask
 
     return batch

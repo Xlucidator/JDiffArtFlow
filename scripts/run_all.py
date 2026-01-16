@@ -7,6 +7,7 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("-n", "--num_styles", type=int, default=15)
 parser.add_argument("-e", "--exp_name", type=str, default=".")
+parser.add_argument("-s", "--seed", type=int, default=42, help="Seed for generation")
 args = parser.parse_args()
 
 max_num = args.num_styles
@@ -32,6 +33,7 @@ with jt.no_grad():
             prompts = json.load(file)
 
         for id, prompt in prompts.items():
+            jt.set_global_seed(args.seed)
             print(prompt)
             image = pipe(prompt + f" in style_{taskid}", num_inference_steps=25, width=512, height=512).images[0]
             image.save(f"{save_dir}/{prompt}.png")

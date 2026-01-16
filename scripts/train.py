@@ -169,9 +169,9 @@ def parse_args(input_args=None):
     parser.add_argument(
         "--train_batch_size", type=int, default=5, help="Batch size (per device) for the training dataloader."
     )
-    parser.add_argument(
-        "--sample_batch_size", type=int, default=4, help="Batch size (per device) for sampling images."
-    )
+    # parser.add_argument(
+    #     "--sample_batch_size", type=int, default=4, help="Batch size (per device) for sampling images."
+    # )
     parser.add_argument("--num_train_epochs", type=int, default=1)
     parser.add_argument(
         "--max_train_steps",
@@ -185,23 +185,23 @@ def parse_args(input_args=None):
         default=1,
         help="Number of updates steps to accumulate before performing a backward/update pass.",
     )
-    parser.add_argument(
-        "--gradient_checkpointing",
-        action="store_true",
-        help="Whether or not to use gradient checkpointing to save memory at the expense of slower backward pass.",
-    )
+    # parser.add_argument(
+    #     "--gradient_checkpointing",
+    #     action="store_true",
+    #     help="Whether or not to use gradient checkpointing to save memory at the expense of slower backward pass.",
+    # )
     parser.add_argument(
         "--learning_rate",
         type=float,
         default=5e-4,
         help="Initial learning rate (after the potential warmup period) to use.",
     )
-    parser.add_argument(
-        "--scale_lr",
-        action="store_true",
-        default=False,
-        help="Scale the learning rate by the number of GPUs, gradient accumulation steps, and batch size.",
-    )
+    # parser.add_argument(
+    #     "--scale_lr",
+    #     action="store_true",
+    #     default=False,
+    #     help="Scale the learning rate by the number of GPUs, gradient accumulation steps, and batch size.",
+    # )
     parser.add_argument(
         "--lr_scheduler",
         type=str,
@@ -233,8 +233,8 @@ def parse_args(input_args=None):
     parser.add_argument("--adam_beta2", type=float, default=0.999, help="The beta2 parameter for the Adam optimizer.")
     parser.add_argument("--adam_weight_decay", type=float, default=1e-2, help="Weight decay to use.")
     parser.add_argument("--adam_epsilon", type=float, default=1e-08, help="Epsilon value for the Adam optimizer")
-    parser.add_argument("--max_grad_norm", default=1.0, type=float, help="Max gradient norm.")
-    parser.add_argument("--hub_token", type=str, default=None, help="The token to use to push to the Model Hub.")
+    # parser.add_argument("--max_grad_norm", default=1.0, type=float, help="Max gradient norm.")
+    # parser.add_argument("--hub_token", type=str, default=None, help="The token to use to push to the Model Hub.")
     parser.add_argument(
         "--tokenizer_max_length",
         type=int,

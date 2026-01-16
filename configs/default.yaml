@@ -1,6 +1,6 @@
 # configs/dreambooth_lora.yaml
 experiment:
-  name: "dreambooth_lora_baseline"
+  name: "template"
   output_dir: "./outputs/style_ckpt/style_00"  # /dreambooth_lora_baseline
   logging_dir: "./logs"
 
@@ -16,7 +16,7 @@ data:
 
   resolution: 512
   center_crop: false
-  train_batch_size: 1
+  train_batch_size: 5
   dataloader_num_workers: 0
 
   tokenizer_max_length: null
@@ -29,16 +29,14 @@ data:
   num_class_images: 100
 
 train:
-  seed: 42 # 0
-
-  learning_rate: 1.0e-4
+  seed: 42
+  learning_rate: 5.0e-4
   max_train_steps: 800  # 500
   gradient_accumulation_steps: 1
-  # num_process: 1
 
   scale_lr: false
   lr_scheduler: "constant"
-  lr_warmup_steps: 0
+  lr_warmup_steps: 500
   lr_num_cycles: 1
   lr_power: 1.0
 
@@ -49,4 +47,4 @@ train:
   max_grad_norm: 1.0
   
   # 算法开关
-  # text_encoder_use_attention_mask: false
+  text_encoder_use_attention_mask: false

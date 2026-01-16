@@ -23,13 +23,26 @@ def setup_logging():
     diffusers.utils.logging.set_verbosity_info()
 
 
-def main():
+def set_seed(seed):
+    import random
+    import numpy as np
+    random.seed(seed)
+    np.random.seed(seed)
+    jt.set_global_seed(seed)
+    print(f"Global Seed set to {seed}")
+
+
+def main(yaml_config=None):
     jt.flags.use_cuda = 1
     setup_logging()
 
     ### 1. Load Config
-    args = parse_args()
-    config = load_config(args.config)
+    if yaml_config is None:
+        args = parse_args()
+        config = load_config(args.config)
+    else:
+        config = load_config(yaml_config)
+    set_seed(config.train.seed)
 
     ### 2. Prepare Engine / Model
     engine = DiffusionEngine(config)

@@ -59,3 +59,10 @@ All the weights of UNet2DConditionModel were initialized from the model checkpoi
 If your task is similar to the task the model of the checkpoint was trained on, you can already use UNet2DConditionModel for predictions without further training.
 lr: 0.0001
 ```
+
+一般loss
+```bash
+Steps: 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 800/800 [03:55<00:00,  3.43it/s, loss=0.552]Saving LoRA weights to /workspace/outputs/style_ckpt/style_00
+Model weights saved in /workspace/outputs/style_ckpt/style_00/pytorch_lora_weights.bin
+Steps: 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 800/800 [03:55<00:00,  3.39it/s, loss=0.552
+```
