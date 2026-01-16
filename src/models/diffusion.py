@@ -2,7 +2,7 @@ import jittor as jt
 from transformers import AutoTokenizer, PretrainedConfig
 from JDiffusion import AutoencoderKL, UNet2DConditionModel
 from diffusers import DDPMScheduler
-from peft import LoraConfig
+from peft import LoraConfig, get_peft_model
 
 
 class DiffusionEngine:
@@ -52,14 +52,26 @@ class DiffusionEngine:
 
 
     def _setup_lora(self):
+        ## 1. Unet LoRA
         unet_lora_config = LoraConfig(
-            r=self.config.model.rank,
-            lora_alpha=self.config.model.rank,
+            r=self.config.model.unet_lora_rank,
+            lora_alpha=self.config.model.unet_lora_rank,
             init_lora_weights="gaussian",
             target_modules=["to_k", "to_q", "to_v", "to_out.0", "add_k_proj", "add_v_proj"],
         )
         self.unet.add_adapter(unet_lora_config)
-
         for name, param in self.unet.named_parameters():
             if "lora" in name:
                 param.requires_grad = True
+
+        ## 2. Text Encoder LoRA
+        text_encoder_rank = getattr(self.config.model, "text_encoder_lora_rank", 0)
+        if text_encoder_rank > 0:
+            text_lora_config = LoraConfig(
+                r=text_encoder_rank,
+                lora_alpha=text_encoder_rank,
+                init_lora_weights="gaussian",
+                target_modules=["k_proj", "v_proj", "q_proj", "out_proj"], # CLIP specific
+            )
+            self.text_encoder = get_peft_model(self.text_encoder, text_lora_config)
+            self.text_encoder.print_trainable_parameters()

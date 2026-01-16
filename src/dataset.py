@@ -55,12 +55,20 @@ class DreamBoothDataset(Dataset):
         example = {}
 
         ## Dealing with instance Images and Prompts
-        instance_image = Image.open(self.instance_images_path[index % self.num_instance_images])
+        image_path = self.instance_images_path[index % self.num_instance_images]
+        # 1. packing image
+        instance_image = Image.open(image_path)
         instance_image = exif_transpose(instance_image)
         if not instance_image.mode == "RGB":
             instance_image = instance_image.convert("RGB")
         example["instance_images"] = self.image_transforms(instance_image)
-        text_inputs = self._tokenize_prompt(self.instance_prompt, self.tokenizer_max_length)
+        # 2. packing prompt
+        if self.config.dynamic_prompt:
+            object_name = image_path.stem.replace("_", " ")
+            dynamic_prompt = f"an image of {object_name} in {self.instance_prompt}"
+            text_inputs = self._tokenize_prompt(dynamic_prompt, self.tokenizer_max_length)
+        else:
+            text_inputs = self._tokenize_prompt(self.instance_prompt, self.tokenizer_max_length)
         example["instance_prompt_ids"] = text_inputs.input_ids
         example["instance_attention_mask"] = text_inputs.attention_mask
 
@@ -107,7 +115,7 @@ def collate_fn(examples):
 
     batch = {"input_ids": input_ids, "pixel_values": pixel_values}
     if has_attention_mask:
-        # attention_mask = jt.cat(attention_mask, dim=0)
+        attention_mask = jt.cat(attention_mask, dim=0)
         batch["attention_mask"] = attention_mask
 
     return batch

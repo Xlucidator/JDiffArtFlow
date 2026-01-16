@@ -18,27 +18,21 @@ class BaseTrainer:
         self.project_dir = config.experiment.output_dir
         os.makedirs(self.project_dir, exist_ok=True)
 
-        # overrode_max_train_steps = False
-        # num_update_steps_per_epoch = math.ceil(len(dataloader) / config.train.gradient_accumulation_steps)
-        # if config.train.max_train_steps is None:
-        #     config.train.max_train_steps = config.train.num_train_epochs * num_update_steps_per_epoch
-        #     overrode_max_train_steps = True
+        ## Setup Optimizer
+        params_to_optimize = list(filter(lambda p: p.requires_grad, self.engine.unet.parameters()))
+        text_encoder_params = list(filter(lambda p: p.requires_grad, self.engine.text_encoder.parameters()))
+        if (len(text_encoder_params) > 0):
+            params_to_optimize.extend(text_encoder_params)
 
         self.optimizer = AdamW(
-            filter(lambda p: p.requires_grad, self.engine.unet.parameters()),
+            params_to_optimize,
             lr=config.train.learning_rate,
             betas=(config.train.adam_beta1, config.train.adam_beta2),
             weight_decay=config.train.adam_weight_decay,
             eps=config.train.adam_epsilon,
         )
-        # self.optimizer = AdamW(
-        #     filter(lambda p: p.requires_grad, self.engine.unet.parameters()),
-        #     lr=float(config.train.learning_rate),
-        #     betas=(float(config.train.adam_beta1), float(config.train.adam_beta2)),
-        #     weight_decay=float(config.train.adam_weight_decay),
-        #     eps=float(config.train.adam_epsilon),
-        # )
 
+        ## Setup LR Scheduler
         self.lr_scheduler = get_scheduler(
             config.train.lr_scheduler,
             optimizer=self.optimizer,
@@ -79,10 +73,23 @@ class BaseTrainer:
     
     def save_checkpoint(self):
         print(f"Saving LoRA weights to {self.project_dir}")
+
+        ## 1. Get Unet LoRA Weights
         unet = self.engine.unet.to(jt.float32)
         unet_lora_state_dict = convert_state_dict_to_diffusers(get_peft_model_state_dict(unet))
+
+        ## 2. Get Text Encoder LoRA Weights (if applicable)
+        text_encoder_lora_state_dict = None
+        if getattr(self.config.model, "text_encoder_lora_rank", 0) > 0:
+            state_dict = get_peft_model_state_dict(self.engine.text_encoder)
+            if len(state_dict) > 0:
+                print(f" - Detected Text Encoder LoRA weights, saving them too.")
+                text_encoder_lora_state_dict = convert_state_dict_to_diffusers(state_dict)
+
+        ## 3. Save LoRA Weights
         LoraLoaderMixin.save_lora_weights(
             save_directory=self.project_dir,
             unet_lora_layers=unet_lora_state_dict,
+            text_encoder_lora_layers=text_encoder_lora_state_dict,
             safe_serialization=False
         )

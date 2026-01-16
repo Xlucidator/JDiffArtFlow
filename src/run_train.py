@@ -1,9 +1,11 @@
+import os
 import sys
 import logging
 # sys.path.append(os.path.join(os.path.dirname(os.path.dirname(__file__)), "src"))
+os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
 
 import jittor as jt
-from utils.config import load_config, parse_args
+from utils.config import load_config, parse_args, save_config
 from models.diffusion import DiffusionEngine
 from dataset import DreamBoothDataset, collate_fn
 from trainers.dreambooth_trainer import DreamBoothTrainer
@@ -60,6 +62,10 @@ def main(yaml_config=None):
     ### 4. Prepare Trainer and Train
     trainer = DreamBoothTrainer(config, engine, train_dataloader)
     trainer.train()
+
+    ### 5. Save YAML Configs
+    save_config(config)
+    print(f"Done!")
 
 
 if __name__ == "__main__":

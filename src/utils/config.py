@@ -4,6 +4,7 @@ import yaml
 import argparse
 from types import SimpleNamespace
 
+
 def get_project_root():
     current_file_path = Path(__file__).resolve()
     marker_dirs = {'src', 'scripts', "configs"}
@@ -13,6 +14,32 @@ def get_project_root():
             if marker_dirs.intersection(items):
                 return parent
     return current_file_path.parent
+
+project_root = get_project_root()
+
+
+def namespace_to_dict(namespace_obj):
+    ''' Convert SimpleNamespace to dict recursively '''
+    if isinstance(namespace_obj, (SimpleNamespace, argparse.Namespace)):
+        return {k: namespace_to_dict(v) for k, v in vars(namespace_obj).items()}
+    elif isinstance(namespace_obj, dict):
+        return {k: namespace_to_dict(v) for k, v in namespace_obj.items()}
+    elif isinstance(namespace_obj, list):
+        return [namespace_to_dict(v) for v in namespace_obj]
+    else:
+        # basic data type (int, str, float, etc.)
+        return namespace_obj
+
+
+def dict_to_namespace(d):
+    if isinstance(d, dict):
+        for k, v in d.items():
+            if k.endswith('_dir') and isinstance(v, str):
+                abs_path = project_root / v
+                d[k] = str(abs_path.resolve())
+            d[k] = dict_to_namespace(d[k])
+        return SimpleNamespace(**d)
+    return d
 
 
 def load_config(config_input):
@@ -30,17 +57,30 @@ def load_config(config_input):
     else:
         raise ValueError(f"load_config expected str or dict, got {type(config_input)}")
 
-    def dict_to_namespace(d):
-        if isinstance(d, dict):
-            for k, v in d.items():
-                if k.endswith('_dir') and isinstance(v, str):
-                    abs_path = project_root / v
-                    d[k] = str(abs_path.resolve())
-                d[k] = dict_to_namespace(d[k])
-            return SimpleNamespace(**d)
-        return d
+    # def dict_to_namespace(d):
+    #     if isinstance(d, dict):
+    #         for k, v in d.items():
+    #             if k.endswith('_dir') and isinstance(v, str):
+    #                 abs_path = project_root / v
+    #                 d[k] = str(abs_path.resolve())
+    #             d[k] = dict_to_namespace(d[k])
+    #         return SimpleNamespace(**d)
+    #     return d
 
     return dict_to_namespace(config_dict)
+
+
+def save_config(name_space_config):
+    config_dict = namespace_to_dict(name_space_config)
+    saved_path = project_root / "outputs" / "used.yaml"
+    with open(saved_path, 'w', encoding='utf-8') as file:
+        yaml.dump(
+            config_dict, 
+            file, 
+            default_flow_style=False, # block style output, more readable
+            sort_keys=False,          # keep order
+            allow_unicode=True        # allow unicode characters
+        )
 
 
 def parse_args():

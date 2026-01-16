@@ -14,7 +14,7 @@ configs_path = project_root / "configs"
 logs_path = project_root / "logs"
 outputs_path = project_root / "outputs"
 
-BASE_CONFIG_FILE = "baseline-dreambooth_lora.yaml"
+BASE_CONFIG_FILE = "self-tune.yaml"
 BASE_CONFIG_PATH = configs_path / BASE_CONFIG_FILE
 
 def prepare_dirs():
@@ -39,18 +39,13 @@ def worker_process(gpu_id, task_queue, base_config_dict):
     print(f"[GPU {gpu_id}] Worker Start...")
     
     os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
+    os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
+    
     log_file = logs_path / f"gpu_{gpu_id}.log"
     file_logger = open(log_file, "w", encoding='utf-8')
     console = sys.stdout
     sys.stdout = file_logger
     sys.stderr = file_logger
-
-    sys.path.append(str(src_path))
-    try:
-        from run_train import main as train_task  # type: ignore
-    except ImportError:
-        sys.path.append(str(src_path))
-        from run_train import main as train_task  # type: ignore
 
     while not task_queue.empty():
         try:
@@ -59,6 +54,13 @@ def worker_process(gpu_id, task_queue, base_config_dict):
         except:
             break
 
+        sys.path.append(str(src_path))
+        try:
+            from run_train import main as train_task  # type: ignore
+        except ImportError:
+            sys.path.append(str(src_path))
+            from run_train import main as train_task  # type: ignore
+
         style_str = f"{style_idx:02d}"
         print(f"[GPU {gpu_id}] === Start processing Style {style_str} ===")
         
@@ -66,7 +68,7 @@ def worker_process(gpu_id, task_queue, base_config_dict):
             current_config = copy.deepcopy(base_config_dict)
 
             current_config['data']['instance_data_dir'] = f"./data/train/{style_str}/images"
-            current_config['data']['instance_prompt'] = f"a photo of style_{style_str}"
+            current_config['data']['instance_prompt'] = f"style_{style_str}"
             current_config['experiment']['output_dir'] = f"./outputs/style_ckpt/style_{style_str}"
 
             train_task(yaml_config=current_config)

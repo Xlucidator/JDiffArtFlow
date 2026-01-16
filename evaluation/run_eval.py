@@ -5,7 +5,7 @@ import argparse
 from eval_score import compute_final_score, print_report
 
 os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
-# os.environ["HF_HUB_OFFLINE"] = "1"
+os.environ["HF_HUB_OFFLINE"] = "1"
 
 current_script_path = os.path.abspath(__file__)
 eval_dir = os.path.dirname(current_script_path)
