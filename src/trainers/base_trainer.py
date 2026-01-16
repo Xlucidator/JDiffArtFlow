@@ -6,6 +6,7 @@ from diffusers.loaders import LoraLoaderMixin
 from diffusers.utils import convert_state_dict_to_diffusers
 from peft.utils import get_peft_model_state_dict
 from tqdm.auto import tqdm
+import math
 
 
 class BaseTrainer:
@@ -16,6 +17,12 @@ class BaseTrainer:
         self.dataloader = dataloader
         self.project_dir = config.experiment.output_dir
         os.makedirs(self.project_dir, exist_ok=True)
+
+        # overrode_max_train_steps = False
+        # num_update_steps_per_epoch = math.ceil(len(dataloader) / config.train.gradient_accumulation_steps)
+        # if config.train.max_train_steps is None:
+        #     config.train.max_train_steps = config.train.num_train_epochs * num_update_steps_per_epoch
+        #     overrode_max_train_steps = True
 
         self.optimizer = AdamW(
             filter(lambda p: p.requires_grad, self.engine.unet.parameters()),
@@ -49,6 +56,7 @@ class BaseTrainer:
         while global_step < self.config.train.max_train_steps:
             for batch in self.dataloader:
                 loss = self.compute_loss(batch)
+                loss.backward()
 
                 self.optimizer.step()
                 self.lr_scheduler.step()

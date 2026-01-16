@@ -2,6 +2,7 @@ import os
 import subprocess
 import sys
 import argparse
+from eval_score import compute_final_score, print_report
 
 os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
 # os.environ["HF_HUB_OFFLINE"] = "1"
@@ -54,6 +55,11 @@ def run_evaluation(exp_name, num_styles):
         print(f"[Launcher] Evaluation failed with error: {e}")
     except Exception as e:
         print(f"[Launcher] An unexpected error occurred: {e}")
+
+
+def get_total_score():
+    pass
+
 
 if __name__ == "__main__":
     args = parse_args()

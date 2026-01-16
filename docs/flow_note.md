@@ -1,3 +1,8 @@
+修改权限
+```bash
+sudo chown -R $(id -u):$(id -g) ./outputs
+```
+
 
 之前的流程：假定实验名为 `exp_name`
 ```bash

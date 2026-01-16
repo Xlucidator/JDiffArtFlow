@@ -1,7 +1,7 @@
 # configs/dreambooth_lora.yaml
 experiment:
   name: "dreambooth_lora_baseline"
-  output_dir: "./outputs/dreambooth_lora_baseline"
+  output_dir: "./outputs/style_ckpt/style_00"  # /dreambooth_lora_baseline
   logging_dir: "./logs"
 
 model:
@@ -13,12 +13,20 @@ model:
 data:
   instance_data_dir: "./data/train/00/images"
   instance_prompt: "a photo of style_00"
-  class_data_dir: null
-  class_prompt: null
+
   resolution: 512
   center_crop: false
   train_batch_size: 1
   dataloader_num_workers: 0
+
+  tokenizer_max_length: null
+
+  # prior preservation
+  with_prior_preservation: false
+  prior_loss_weight: 1.0
+  class_data_dir: null
+  class_prompt: null
+  num_class_images: 100
 
 train:
   seed: 42
@@ -34,6 +42,4 @@ train:
   max_grad_norm: 1.0
   
   # 算法开关
-  with_prior_preservation: false
-  prior_loss_weight: 1.0
   text_encoder_use_attention_mask: false

@@ -47,6 +47,8 @@ class DiffusionEngine:
         for param in self.unet.parameters():
             param.requires_grad = False
         # TODO useless
+        for name, param in self.unet.named_parameters():
+            assert param.requires_grad == False, name
 
 
     def _setup_lora(self):
