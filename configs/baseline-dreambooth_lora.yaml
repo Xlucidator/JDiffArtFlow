@@ -52,3 +52,13 @@ train:
   
   # 算法开关
   # text_encoder_use_attention_mask: false
+
+infer:
+  seed: 42
+  batch_size: 5
+
+  origin_scale: 0.0
+  guidance_scale: 7.5
+  strength: 0.9
+  negative_prompt: null  # "longbody, lowres, bad anatomy, bad hands, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality"
+  num_inference_steps: 25

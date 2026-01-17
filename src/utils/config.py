@@ -18,6 +18,18 @@ def get_project_root():
 project_root = get_project_root()
 
 
+def set_seed(seed):
+    import random
+    import numpy as np
+    import jittor as jt
+    import os
+    random.seed(seed)
+    os.environ['PYTHONHASHSEED'] = str(seed)
+    np.random.seed(seed)
+    jt.set_global_seed(seed)
+    print(f"Global Seed set to {seed}")
+
+
 def namespace_to_dict(namespace_obj):
     ''' Convert SimpleNamespace to dict recursively '''
     if isinstance(namespace_obj, (SimpleNamespace, argparse.Namespace)):
@@ -70,9 +82,21 @@ def load_config(config_input):
     return dict_to_namespace(config_dict)
 
 
-def save_config(name_space_config):
+def save_config(name_space_config, mode="general"):
     config_dict = namespace_to_dict(name_space_config)
-    saved_path = project_root / "outputs" / "used.yaml"
+    output_dir = project_root / "outputs"
+
+    if mode == "train":
+        saved_path = output_dir / "train_used.yaml"
+        # save config_dict content except infer
+        config_dict = {k: v for k, v in config_dict.items() if k != "infer"}
+    elif mode == "infer":
+        saved_path = output_dir / "infer_used.yaml"
+        # save infer part only
+        config_dict = {"infer": config_dict.get("infer", {})}
+    else:
+        saved_path = output_dir / "general_used.yaml"
+    
     with open(saved_path, 'w', encoding='utf-8') as file:
         yaml.dump(
             config_dict, 
@@ -81,6 +105,7 @@ def save_config(name_space_config):
             sort_keys=False,          # keep order
             allow_unicode=True        # allow unicode characters
         )
+    print(f"Config of {mode} saved to {saved_path}")
 
 
 def parse_args():

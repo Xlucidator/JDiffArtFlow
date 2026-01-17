@@ -9,7 +9,7 @@ model:
   revision: null
   tokenizer_name: null
   unet_lora_rank: 32
-  text_encoder_lora_rank: 4
+  text_encoder_lora_rank: 0
 
 data:
   instance_data_dir: "./data/train/00/images"
@@ -53,7 +53,7 @@ train:
   # text_encoder_use_attention_mask: false
 
 infer:
-  seed: 42
+  seed: 42  # real_seed = seed + style_id
   batch_size: 5
 
   origin_scale: 0.0

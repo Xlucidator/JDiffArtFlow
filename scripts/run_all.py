@@ -17,7 +17,7 @@ project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 src_dir = os.path.join(project_root, "src")
 sys.path.append(src_dir)
 from custom_pipeline import Img2ImgPipeline
-from utils.config import load_config, save_config
+from utils.config import load_config, save_config, set_seed
 from utils.image import get_avg_image
 
 
@@ -155,6 +155,7 @@ def main():
         for tempid in tqdm.tqdm(range(0, max_num)):
             taskid = "{:0>2d}".format(tempid)
             print(f"\nProcessing Style {taskid}...")
+            set_seed(conf.infer.seed + tempid)
             
             ### === [Step 1] Reload Pipeline (Clean State) ===
             print(f"Loading Custom Img2Img Pipeline...")
@@ -215,7 +216,6 @@ def main():
 
             batch_size = conf.infer.batch_size
             for i in range(0, total_prompts, batch_size):
-                jt.set_global_seed(conf.infer.seed)
                 batch_items = prompt_items[i : i + batch_size]
                 
                 ## (1) Dealing with prompts 
@@ -252,48 +252,10 @@ def main():
             
             del pipe
             jt.gc()
+    
+    save_config(conf, mode="infer")
 
 
 if __name__ == "__main__":
     main()
     
-
-# parser = argparse.ArgumentParser()
-# parser.add_argument("-n", "--num_styles", type=int, default=15)
-# parser.add_argument("-e", "--exp_name", type=str, default=".")
-# parser.add_argument("-s", "--seed", type=int, default=42, help="Seed for generation")
-# args = parser.parse_args()
-
-# max_num = args.num_styles
-# dataset_root = "../data/train"
-# outputs_root = f"../outputs/{args.exp_name}"
-
-# pipe = StableDiffusionPipeline.from_pretrained("Charles-Elena/stable-diffusion-2-1").to("cuda")
-
-
-# with jt.no_grad():
-#     for tempid in tqdm.tqdm(range(0, max_num)):
-#         taskid = "{:0>2d}".format(tempid)
-#         # pipe = StableDiffusionPipeline.from_pretrained("Charles-Elena/stable-diffusion-2-1").to("cuda")  # plan B
-#         pipe.load_lora_weights(f"{outputs_root}/style_ckpt/style_{taskid}")
-        
-#         save_dir = f"{outputs_root}/generate/{taskid}"
-#         if os.path.exists(save_dir):
-#             shutil.rmtree(save_dir)
-#         os.makedirs(save_dir, exist_ok=True)
-
-#         # load json
-#         with open(f"{dataset_root}/{taskid}/prompt.json", "r") as file:
-#             prompts = json.load(file)
-
-#         for id, prompt in prompts.items():
-#             jt.set_global_seed(args.seed)
-#             print(prompt)
-#             input_prompt = f"an image of {prompt} in style_{taskid}"
-#             image = pipe(input_prompt, num_inference_steps=25, width=512, height=512).images[0]
-#             image.save(f"{save_dir}/{prompt}.png")
-
-#         try:
-#             pipe.unload_lora_weights()
-#         except AttributeError:
-#             print("warning: unload_lora_weights not found, cannot unload lora weights. Should use plan B")

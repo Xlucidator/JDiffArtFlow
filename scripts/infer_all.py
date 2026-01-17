@@ -1,22 +1,25 @@
 import os
 import shutil
 import sys
-import time
 import yaml
-import copy
 import argparse
-from multiprocessing import Process, Queue
+import copy
+import multiprocessing as mp
+import time
 from pathlib import Path
 
 project_root = Path(__file__).resolve().parent.parent
 src_path = project_root / "src"
 configs_path = project_root / "configs"
-logs_path = project_root / "logs"
 outputs_path = project_root / "outputs"
+
+logs_path = project_root / "logs" / "infer"
+generate_path = outputs_path / "generate"
+score_path = outputs_path / "scores"
 
 
 def prepare_dirs():
-    dirs_to_reset = [logs_path, outputs_path]
+    dirs_to_reset = [logs_path, generate_path, score_path]
     for dir_path in dirs_to_reset:
         if dir_path.exists():
             print(f"Cleaning: {dir_path}")
@@ -32,60 +35,68 @@ def prepare_dirs():
 def load_yaml(path):
     with open(path, 'r', encoding='utf-8') as f:
         return yaml.safe_load(f)
+    
+def save_yaml(config_dict, path):
+    with open(path, 'w', encoding='utf-8') as file:
+        yaml.dump(
+            config_dict, 
+            file, 
+            default_flow_style=False, # block style output, more readable
+            sort_keys=False,          # keep order
+            allow_unicode=True        # allow unicode characters
+        )
 
 
 def worker_process(gpu_id, task_queue, base_config_dict):
     print(f"[GPU {gpu_id}] Worker Start...")
-    
+
     os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
     os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
-    
+
     log_file = logs_path / f"gpu_{gpu_id}.log"
     file_logger = open(log_file, "w", encoding='utf-8')
     console = sys.stdout
     sys.stdout = file_logger
     sys.stderr = file_logger
-
+    
     while not task_queue.empty():
         try:
             # non blocked get
             style_idx = task_queue.get_nowait()
-        except:
+        except Exception:
             break
 
         sys.path.append(str(src_path))
         try:
-            from run_train import main as train_task  # type: ignore
+            from run_infer import run_single_task as infer_task  # type: ignore
         except ImportError as e:
-            print(f"[GPU {gpu_id}] Error importing run_train module: {e}")
+            print(f"[GPU {gpu_id}] Error importing run_infer module: {e}")
             exit(1)
 
         style_str = f"{style_idx:02d}"
         print(f"[GPU {gpu_id}] === Start processing Style {style_str} ===")
-        
         try:
             current_config = copy.deepcopy(base_config_dict)
-
-            current_config['data']['instance_data_dir'] = f"./data/train/{style_str}/images"
-            current_config['data']['instance_prompt'] = f"style_{style_str}"
-            current_config['experiment']['output_dir'] = f"./outputs/style_ckpt/style_{style_str}"
-
-            train_task(yaml_config=current_config)
+            infer_task(
+                taskid=style_str,
+                yaml_config=current_config
+            )
             print(f"[GPU {gpu_id}] Style {style_str} training completed!")
         except Exception as e:
-            print(f"[GPU {gpu_id}] Style {style_str} failed: {e}")
+            print(f"[GPU {gpu_id}] Error in Style {style_str}: {e}")
             import traceback
             traceback.print_exc()
-
+    
     print(f"[GPU {gpu_id}] All tasks finished. Logs saved to {log_file}", file=console)
     file_logger.close()
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-n", "--max_num", type=int, default=15, help="Total number of styles to run (0 to max_num-1)")
+    parser.add_argument("-n", "--num_styles", type=int, default=15, help="Total number of styles (0 to n-1)")
+    parser.add_argument("-e", "--exp_name", type=str, default=".")  # useless now
     parser.add_argument("-c", "--config", type=str, default="self-tune.yaml")
-    # parser.add_argument("-g", "--gpu_count", type=int, default=4, help="Number of GPUs to use")
+    # parser.add_argument("--gpus", type=str, default="0,1,2,3", help="Comma separated list of GPU ids to use")
     args = parser.parse_args()
 
     # 0. Load base config
@@ -95,28 +106,29 @@ def main():
     base_config_dict = load_yaml(base_config_path)
 
     # 1. Create task queue
-    task_queue = Queue()
-    for i in range(args.max_num):
+    task_queue = mp.Queue()
+    for i in range(args.num_styles):
         task_queue.put(i)
-    print(f"=== Starting batch training ===\nTotal tasks: {args.max_num}")
+    print(f"=== Starting Multi-GPU Inference ===")
+    print(f"Total Tasks: {args.num_styles}")
 
     # 2. Start Worker processes
-    processes = []
     active_gpu_ids = [1, 2, 3]
+    print(f"Use GPUs: {active_gpu_ids}")
+    processes = []
     for gpu_id in active_gpu_ids:
-        p = Process(target=worker_process, args=(gpu_id, task_queue, base_config_dict))
+        p = mp.Process(target=worker_process, args=(gpu_id, task_queue, base_config_dict))
         p.start()
         processes.append(p)
-        time.sleep(2) # Slightly stagger start times to avoid IO/VRAM spikes
-
+        time.sleep(2)  # Slightly stagger start times to avoid IO/VRAM spikes
+    
     # 3. Wait for all processes to finish
     for p in processes:
         p.join()
-
-    print("\n=== All training tasks have completed ===")
-
+    
+    save_yaml(base_config_dict, outputs_path / "infer_used.yaml")
+    print("=== All inference tasks have completed ===")
 
 if __name__ == "__main__":
-    import multiprocessing
-    multiprocessing.set_start_method('spawn')
+    mp.set_start_method('spawn')
     main()

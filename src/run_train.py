@@ -5,7 +5,7 @@ import logging
 os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
 
 import jittor as jt
-from utils.config import load_config, parse_args, save_config
+from utils.config import load_config, parse_args, save_config, set_seed
 from models.diffusion import DiffusionEngine
 from dataset import DreamBoothDataset, collate_fn
 from trainers.dreambooth_trainer import DreamBoothTrainer
@@ -23,15 +23,6 @@ def setup_logging():
     )
     transformers.utils.logging.set_verbosity_warning()
     diffusers.utils.logging.set_verbosity_info()
-
-
-def set_seed(seed):
-    import random
-    import numpy as np
-    random.seed(seed)
-    np.random.seed(seed)
-    jt.set_global_seed(seed)
-    print(f"Global Seed set to {seed}")
 
 
 def main(yaml_config=None):
@@ -64,7 +55,7 @@ def main(yaml_config=None):
     trainer.train()
 
     ### 5. Save YAML Configs
-    save_config(config)
+    save_config(config, mode="train")
     print(f"Done!")
 
 
