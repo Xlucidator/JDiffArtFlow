@@ -8,8 +8,8 @@ model:
   pretrained_model_name_or_path: "Charles-Elena/stable-diffusion-2-1"
   revision: null
   tokenizer_name: null
-  unet_lora_rank: 4
-  text_encoder_lora_rank: 0
+  unet_lora_rank: 32
+  text_encoder_lora_rank: 4
 
 data:
   instance_data_dir: "./data/train/00/images"
@@ -50,5 +50,14 @@ train:
   adam_epsilon: 1.0e-8
   max_grad_norm: 1.0
   
-  # 算法开关
   # text_encoder_use_attention_mask: false
+
+infer:
+  seed: 42
+  batch_size: 5
+
+  origin_scale: 0.0
+  guidance_scale: 7.5
+  strength: 0.9
+  negative_prompt: null  # "longbody, lowres, bad anatomy, bad hands, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality"
+  num_inference_steps: 25

@@ -8,7 +8,8 @@ model:
   pretrained_model_name_or_path: "Charles-Elena/stable-diffusion-2-1"
   revision: null
   tokenizer_name: null
-  rank: 4  # LoRA Rank
+  unet_lora_rank: 4
+  text_encoder_lora_rank: 0
 
 data:
   instance_data_dir: "./data/train/00/images"

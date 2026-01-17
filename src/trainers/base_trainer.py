@@ -19,18 +19,30 @@ class BaseTrainer:
         os.makedirs(self.project_dir, exist_ok=True)
 
         ## Setup Optimizer
-        params_to_optimize = list(filter(lambda p: p.requires_grad, self.engine.unet.parameters()))
-        text_encoder_params = list(filter(lambda p: p.requires_grad, self.engine.text_encoder.parameters()))
-        if (len(text_encoder_params) > 0):
-            params_to_optimize.extend(text_encoder_params)
+        unet_params = list(filter(lambda p: p.requires_grad, self.engine.unet.parameters()))
+        te_params = list(filter(lambda p: p.requires_grad, self.engine.text_encoder.parameters()))
 
-        self.optimizer = AdamW(
-            params_to_optimize,
-            lr=config.train.learning_rate,
-            betas=(config.train.adam_beta1, config.train.adam_beta2),
-            weight_decay=config.train.adam_weight_decay,
-            eps=config.train.adam_epsilon,
-        )
+        if (len(te_params) > 0):
+            print("TE LoRA detected, setting up optimizer with differnt LR")
+            print(f"UNet LR={config.train.learning_rate}, TextEncoder LR={config.train.learning_rate * 0.1}")
+            self.optimizer = AdamW(
+                [
+                    {"params": unet_params, "lr": config.train.learning_rate},
+                    {"params": te_params, "lr": config.train.learning_rate * 0.1}
+                ],
+                lr=config.train.learning_rate,
+                betas=(config.train.adam_beta1, config.train.adam_beta2),
+                weight_decay=config.train.adam_weight_decay,
+                eps=config.train.adam_epsilon,
+            )
+        else:
+            self.optimizer = AdamW(
+                unet_params,
+                lr=config.train.learning_rate,
+                betas=(config.train.adam_beta1, config.train.adam_beta2),
+                weight_decay=config.train.adam_weight_decay,
+                eps=config.train.adam_epsilon,
+            )
 
         ## Setup LR Scheduler
         self.lr_scheduler = get_scheduler(
