@@ -12,14 +12,15 @@ project_root = Path(__file__).resolve().parent.parent
 src_path = project_root / "src"
 configs_path = project_root / "configs"
 outputs_path = project_root / "outputs"
+logs_path = project_root / "logs"
 
-logs_path = project_root / "logs" / "infer"
+infer_logs_path = logs_path / "infer"
 generate_path = outputs_path / "generate"
 score_path = outputs_path / "scores"
 
 
 def prepare_dirs():
-    dirs_to_reset = [logs_path, generate_path, score_path]
+    dirs_to_reset = [infer_logs_path, generate_path, score_path]
     for dir_path in dirs_to_reset:
         if dir_path.exists():
             print(f"Cleaning: {dir_path}")
@@ -53,7 +54,7 @@ def worker_process(gpu_id, task_queue, base_config_dict):
     os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
     os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
 
-    log_file = logs_path / f"gpu_{gpu_id}.log"
+    log_file = infer_logs_path / f"gpu_{gpu_id}.log"
     file_logger = open(log_file, "w", encoding='utf-8')
     console = sys.stdout
     sys.stdout = file_logger
@@ -113,7 +114,7 @@ def main():
     print(f"Total Tasks: {args.num_styles}")
 
     # 2. Start Worker processes
-    active_gpu_ids = [1, 2, 3]
+    active_gpu_ids = [2, 3]
     print(f"Use GPUs: {active_gpu_ids}")
     processes = []
     for gpu_id in active_gpu_ids:

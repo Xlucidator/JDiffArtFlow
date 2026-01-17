@@ -1,40 +1,36 @@
 #!/bin/bash
 
-# ================= 配置区域 =================
-# 容器名字 (保持固定，方便管理)
+# ================= Configuration =================
 CONTAINER_NAME="jdiff_work"
-# 镜像名字 (你的快照或官方镜像)
 IMAGE_NAME="jdiffusion:latest"
-# 挂载目录 (默认挂载当前脚本所在目录到容器的 /workspace)
 HOST_DIR="$(pwd)"
 WORK_DIR="/workspace"
-# ===========================================
+# =================================================
 
-# 获取操作指令
+# Get action command
 ACTION=$1
 
-# 帮助信息
 show_help() {
-    echo "使用方法: ./manage.sh [start|enter|stop|rm]"
+    echo "Usage: ./manage.sh [start|enter|stop|rm]"
     echo "  start : 启动或重启容器 (后台模式)"
     echo "  enter : 进入容器 (打开终端)"
     echo "  stop  : 停止容器 (不删除数据)"
     echo "  rm    : 停止并彻底删除容器"
 }
 
-# 1. 启动容器逻辑
+# 1. Start container logic
 start_container() {
-    # 检查容器是否已经在运行
+    # Check if the container is already running
     if [ "$(docker ps -q -f name=$CONTAINER_NAME)" ]; then
-        echo "✅ 容器 [$CONTAINER_NAME] 正在运行中。"
+        echo "✅ Container [$CONTAINER_NAME] is already running."
     else
-        # 检查容器是否存在但停止了
+        # Check if the container exists but is stopped
         if [ "$(docker ps -aq -f name=$CONTAINER_NAME)" ]; then
-            echo "🔄 容器已存在但停止了，正在唤醒..."
+            echo "🔄 Container exists but is stopped, waking up..."
             docker start $CONTAINER_NAME
         else
-            echo "🚀 正在创建并启动新容器..."
-            # 核心启动命令
+            echo "🚀 Creating and starting a new container..."
+            # Core start command
             docker run -dt \
                 --gpus all \
                 --name $CONTAINER_NAME \
@@ -42,38 +38,38 @@ start_container() {
                 $IMAGE_NAME \
                 /bin/bash
         fi
-        echo "✅ 容器启动成功！"
+        echo "✅ Container started successfully!"
     fi
 }
 
-# 2. 进入容器逻辑
+# 2. Enter container logic
 enter_container() {
-    # 确保容器在运行
+    # Ensure the container is running
     if [ ! "$(docker ps -q -f name=$CONTAINER_NAME)" ]; then
-        echo "⚠️ 容器未运行，正在尝试启动..."
+        echo "⚠️ Container is not running, attempting to start..."
         start_container
     fi
-    echo "root@container:~$ 进入容器工作环境 (输入 exit 退出)..."
+    echo "root@container:~$ Entering container workspace (type exit to quit)..."
     # docker exec -it $CONTAINER_NAME /bin/bash
     docker exec -it $CONTAINER_NAME /bin/bash -c "exec /bin/bash --rcfile <(echo '. ~/.bashrc; source /root/anaconda3/etc/profile.d/conda.sh; conda activate jdiffusion; cd /workspace')"
 }
 
-# 3. 停止容器
+# 3. Stop container
 stop_container() {
-    echo "🛑 正在停止容器..."
+    echo "🛑 Stopping container..."
     docker stop $CONTAINER_NAME
-    echo "✅ 容器已停止。"
+    echo "✅ Container stopped."
 }
 
-# 4. 删除容器
+# 4. Remove container
 remove_container() {
-    echo "🗑️ 正在删除容器..."
+    echo "🗑️ Removing container..."
     docker stop $CONTAINER_NAME >/dev/null 2>&1
     docker rm $CONTAINER_NAME
-    echo "✅ 容器已删除 (宿主机代码保留)。"
+    echo "✅ Container removed (host code preserved)."
 }
 
-# 主逻辑路由
+# Main logic routing
 case "$ACTION" in
     start)
         start_container

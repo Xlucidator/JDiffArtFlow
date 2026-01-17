@@ -52,38 +52,54 @@ class DreamBoothDataset(Dataset):
     
 
     def __getitem__(self, index):
-        example = {}
-
-        ## Dealing with instance Images and Prompts
+        ### 1. Prepare Instance Data
+        # Deal with Image
         image_path = self.instance_images_path[index % self.num_instance_images]
-        # 1. packing image
         instance_image = Image.open(image_path)
         instance_image = exif_transpose(instance_image)
         if not instance_image.mode == "RGB":
             instance_image = instance_image.convert("RGB")
-        example["instance_images"] = self.image_transforms(instance_image)
-        # 2. packing prompt
+        
+        # Deal with Prompt
         if self.config.dynamic_prompt:
             object_name = image_path.stem.replace("_", " ")
             dynamic_prompt = f"an image of {object_name} in {self.instance_prompt}"
-            text_inputs = self._tokenize_prompt(dynamic_prompt, self.tokenizer_max_length)
+            prompt_text = dynamic_prompt
         else:
-            text_inputs = self._tokenize_prompt(self.instance_prompt, self.tokenizer_max_length)
-        example["instance_prompt_ids"] = text_inputs.input_ids
-        example["instance_attention_mask"] = text_inputs.attention_mask
+            prompt_text = self.instance_prompt
+        text_inputs = self._tokenize_prompt(prompt_text, self.tokenizer_max_length)
 
-        ## Dealing with prior preservation class Images and Prompts
+        # Create Instance Example
+        instance_example = {
+            "pixel_values": self.image_transforms(instance_image),
+            "input_ids": text_inputs.input_ids,
+            "attention_mask": text_inputs.attention_mask, 
+        }
+        result_batch = [instance_example]
+
+        ### 2. Prepare Class Data (if any)
         if self.class_data_root:
-            class_image = Image.open(self.class_images_path[index % self.num_class_images])
+            # Deal with Image
+            class_image_path = self.class_images_path[index % self.num_class_images]
+            class_image = Image.open(class_image_path)
             class_image = exif_transpose(class_image)
             if not class_image.mode == "RGB":
                 class_image = class_image.convert("RGB")
-            example["class_images"] = self.image_transforms(class_image)
-            class_text_inputs = self._tokenize_prompt(self.class_prompt, self.tokenizer_max_length)
-            example["class_prompt_ids"] = class_text_inputs.input_ids
-            example["class_attention_mask"] = class_text_inputs.attention_mask
+            
+            # Deal with Prompt : force enable dynamic prompt
+            class_object_name = class_image_path.stem.rsplit('_', 1)[0].replace("_", " ") # always assume '_<num>.suffix'
+            class_prompt_text = f"an image of {class_object_name}"
+            class_text_inputs = self._tokenize_prompt(class_prompt_text, self.tokenizer_max_length)
+            
+            # Create Class Example
+            class_example = {
+                "pixel_values": self.image_transforms(class_image),
+                "input_ids": class_text_inputs.input_ids,
+                "attention_mask": class_text_inputs.attention_mask,
+            }
+            result_batch.append(class_example)
 
-        return example
+        return result_batch  # [{instance_example}, {class_example}]
     
 
     def _tokenize_prompt(self, prompt, tokenizer_max_length=None):
@@ -103,19 +119,20 @@ class DreamBoothDataset(Dataset):
 
 
 def collate_fn(examples):
-    has_attention_mask = "instance_attention_mask" in examples[0]
+    ''' examples: list of lists [[inst(, class)], [inst(, class)], ...] '''
+    
+    # 1. Flatten to [{inst_example}(, {class_example}), {inst_example}(, {class_example}) ...]
+    flat_examples = [item for sublist in examples for item in sublist]
+    
+    # 2. Gather data
+    pixel_values = [example["pixel_values"] for example in flat_examples]
+    input_ids = [example["input_ids"] for example in flat_examples]
+    attention_mask = [example["attention_mask"] for example in flat_examples]
 
-    input_ids = [example["instance_prompt_ids"] for example in examples]
-    pixel_values = [example["instance_images"] for example in examples]
-    if has_attention_mask:
-        attention_mask = [example["instance_attention_mask"] for example in examples]
-
-    pixel_values = jt.stack(pixel_values).float()
-    input_ids = jt.cat(input_ids, dim=0)
-
-    batch = {"input_ids": input_ids, "pixel_values": pixel_values}
-    if has_attention_mask:
-        attention_mask = jt.cat(attention_mask, dim=0)
-        batch["attention_mask"] = attention_mask
-
+    # 3. Jittor Stack/Cat
+    batch = {
+        "pixel_values": jt.stack(pixel_values).float(),
+        "input_ids": jt.cat(input_ids, dim=0),
+        "attention_mask": jt.cat(attention_mask, dim=0),
+    }
     return batch

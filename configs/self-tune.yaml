@@ -25,10 +25,10 @@ data:
 
   # prior preservation
   with_prior_preservation: false
-  prior_loss_weight: 1.0
-  class_data_dir: null
-  class_prompt: null
-  num_class_images: 100
+  prior_loss_weight: 1
+  class_data_dir: "./data/prior/00"
+  class_prompt: "an object"
+  num_class_images: 300
 
 train:
   seed: 42 # 0
