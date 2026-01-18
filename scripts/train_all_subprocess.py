@@ -64,6 +64,7 @@ def worker_process(gpu_id, task_queue, base_config_dict):
         current_config = copy.deepcopy(base_config_dict)
         current_config['data']['instance_data_dir'] = f"./data/train/{style_str}/images"
         current_config['data']['instance_prompt'] = f"style_{style_str}"
+        current_config['data']['class_data_dir'] = f"./data/prior/{style_str}"
         current_config['experiment']['output_dir'] = f"./outputs/style_ckpt/style_{style_str}"
 
         temp_config_file = temp_config_path / f"train_config_{style_str}.yaml"

@@ -8,8 +8,8 @@ model:
   pretrained_model_name_or_path: "Charles-Elena/stable-diffusion-2-1"
   revision: null
   tokenizer_name: null
-  unet_lora_rank: 32
-  text_encoder_lora_rank: 0
+  unet_lora_rank: 64
+  text_encoder_lora_rank: 8
 
 data:
   instance_data_dir: "./data/train/00/images"
@@ -20,11 +20,11 @@ data:
   # picture concerned
   resolution: 512
   center_crop: false
-  do_augmentation: false
+  do_augmentation: true
   
   # prior preservation
   with_prior_preservation: true
-  prior_loss_weight: 1.0  # 0.8, 0.9, 1.0
+  prior_loss_weight: 0.9  # 0.8, 1.0
   class_data_dir: "./data/prior/00"
   class_prompt: "an object"
   num_class_images: 300
@@ -37,8 +37,9 @@ train:
   seed: 42 # 0
 
   learning_rate: 1.0e-4
-  max_train_steps: 800  # 1200, 800, 500
+  max_train_steps: 1200  # 1200, 800, 500
   gradient_accumulation_steps: 1
+  # num_process: 1
 
   scale_lr: false
   lr_scheduler: "constant"
