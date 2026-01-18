@@ -10,7 +10,7 @@ from JDiffusion.utils import randn_tensor
 
 
 def retrieve_latents(encoder_output: jt.Var, seed: int = None, sample_mode: str = "sample"):
-    ''' retrieve latetns from vae encoder output '''
+    ''' safely retrieve latents from vae encoder output '''
     if hasattr(encoder_output, "latent_dist") and sample_mode == "sample":
         return encoder_output.latent_dist.sample(seed)
     elif hasattr(encoder_output, "latent_dist") and sample_mode == "argmax":
@@ -22,110 +22,104 @@ def retrieve_latents(encoder_output: jt.Var, seed: int = None, sample_mode: str 
     
 
 class Img2ImgPipeline(StableDiffusionPipeline):
+    ''' Stable Diffusion Img2Img Pipeline with Jittor backend '''
 
     def prepare_latents(
-        self, image, timestep, batch_size, 
-        num_images_per_prompt, dtype, 
-        seed=None, 
-        add_noise=True
+        self, image, timestep, batch_size, num_images_per_prompt, dtype, 
+        seed=None, add_noise=True
     ):
+        ''' Generate latents from the input image '''
         if not isinstance(image, (jt.Var, PIL.Image.Image, list)):
             raise ValueError(f"`image` has to be of type `jittor.Tensor`, `PIL.Image.Image` or list but is {type(image)}")
 
         image = image.to(dtype=dtype)
         batch_size = batch_size * num_images_per_prompt
 
+        ### 1. Encode the image into latents
         if image.shape[1] == 4:
+            ## assume latents are already provided
             init_latents = image
         else:
-           # make sure the VAE is in float32 mode, as it overflows in float16
+            ## vae encoding logic
+            # (option) cast type to float32 to avoid overflow
             if self.vae.config.force_upcast:
                 image = image.float()
                 self.vae.to(dtype=jt.float32)
 
-            if isinstance(seed, list) and len(seed) != batch_size:
-                raise ValueError(
-                    f"You have passed a list of seeds of length {len(seed)}, but requested an effective batch"
-                    f" size of {batch_size}. Make sure the batch size matches the length of the seeds."
-                )
-            elif isinstance(seed, list):
+            # deal with multiple seeds
+            if isinstance(seed, list):
+                if len(seed) != batch_size:
+                    raise ValueError(f"Seed list length {len(seed)} does not match batch size {batch_size}.")
+                # Manual batch encoding for different seeds
                 init_latents = [
-                    retrieve_latents(self.vae.encode(image[i : i + 1]), seed=seed[i])
+                    retrieve_latents(self.vae.encode(image[i: i+1]), seed=seed[i])
                     for i in range(batch_size)
                 ]
                 init_latents = jt.concat(init_latents, dim=0)
             else:
                 init_latents = retrieve_latents(self.vae.encode(image), seed=seed)
 
+            # (option) cast type back
             if self.vae.config.force_upcast:
                 self.vae.to(dtype)
-
+            
+            # standard scaling
             init_latents = init_latents.to(dtype)
             init_latents = self.vae.config.scaling_factor * init_latents
 
-        if batch_size > init_latents.shape[0] and batch_size % init_latents.shape[0] == 0:
-            # expand init_latents for batch_size
-            additional_image_per_prompt = batch_size // init_latents.shape[0]
-            init_latents = jt.concat([init_latents] * additional_image_per_prompt, dim=0)
-        elif batch_size > init_latents.shape[0] and batch_size % init_latents.shape[0] != 0:
-            raise ValueError(
-                f"Cannot duplicate `image` of batch size {init_latents.shape[0]} to {batch_size} text prompts."
-            )
-        else:
-            init_latents = jt.concat([init_latents], dim=0)
+        ### 2. Adjust batch size of latents
+        current_batch_size = init_latents.shape[0]
+        if batch_size > current_batch_size:
+            if batch_size % current_batch_size != 0:
+                raise ValueError(f"Cannot duplicate image of size {current_batch_size} to {batch_size}.")
+            repeat_times = batch_size // current_batch_size
+            init_latents = init_latents.repeat(repeat_times, 1, 1, 1)
 
+        ### 3. Add noise (Option)
         if add_noise:
             shape = init_latents.shape
-            noise = randn_tensor(shape, seed=seed,  dtype=dtype)
-            # get latents
+            noise = randn_tensor(shape, seed=seed,  dtype=dtype) # keep random generator consistent
             init_latents = self.scheduler.add_noise(init_latents, noise, timestep)
 
-        latents = init_latents
-        return latents
+        return init_latents
 
 
-    def get_timesteps(self, num_inference_steps, strength,  denoising_start=None):
-        # get the original timestep using init_timestep
+    def get_timesteps(self, num_inference_steps, strength, denoising_start=None):
+        ### === Case A: Standard Img2Img (controlled by Strength) ===
         if denoising_start is None:
+            ## calculate skip steps based on strength
             init_timestep = min(int(num_inference_steps * strength), num_inference_steps)
             t_start = max(num_inference_steps - init_timestep, 0)
+
+            ## direct slicing, skip steps = order * t_start
+            timesteps = self.scheduler.timesteps[t_start * self.scheduler.order :] 
+            return timesteps, num_inference_steps - t_start
+
+        ### === Case B: Advanced control (precise control via denoising_start) ===
         else:
-            t_start = 0
-
-        timesteps = self.scheduler.timesteps[t_start * self.scheduler.order :]
-
-        # Strength is irrelevant if we directly request a timestep to start at;
-        # that is, strength is determined by the denoising_start instead.
-        if denoising_start is not None:
+            ## calculate absolute cutoff timestep (e.g., 800)
             discrete_timestep_cutoff = int(
                 round(
-                    self.scheduler.config.num_train_timesteps
+                    self.scheduler.config.num_train_timesteps  # num_train_timesteps is usually 1000
                     - (denoising_start * self.scheduler.config.num_train_timesteps)
                 )
             )
+            timesteps = self.scheduler.timesteps  # get all timesteps
+            num_inference_steps = (timesteps < discrete_timestep_cutoff).sum().item() # steps less than cutoff
+            if self.scheduler.order == 2 and num_inference_steps % 2 == 0: 
+                num_inference_steps = num_inference_steps + 1 # special case for 2nd order schedulers
 
-            num_inference_steps = (timesteps < discrete_timestep_cutoff).sum().item()
-            if self.scheduler.order == 2 and num_inference_steps % 2 == 0:
-                # if the scheduler is a 2nd order scheduler we might have to do +1
-                # because `num_inference_steps` might be even given that every timestep
-                # (except the highest one) is duplicated. If `num_inference_steps` is even it would
-                # mean that we cut the timesteps in the middle of the denoising step
-                # (between 1st and 2nd devirative) which leads to incorrect results. By adding 1
-                # we ensure that the denoising process always ends after the 2nd derivate step of the scheduler
-                num_inference_steps = num_inference_steps + 1
-
-            # because t_n+1 >= t_n, we slice the timesteps starting from the end
+            # slice from the end
             timesteps = timesteps[-num_inference_steps:]
             return timesteps, num_inference_steps
 
-        return timesteps, num_inference_steps - t_start
 
     @jt.no_grad()
     def __call__(
         self,
         style_prompt: Union[str, List[str]] = None,
         origin_prompt: Union[str, List[str]] = None,
-        origin_scale: Union[str, List[str]] = None,
+        origin_scale: float = 0.0,  # fix type
         image: PipelineImageInput = None,
         strength: float = 0.3,
         num_inference_steps: int = 50,
@@ -149,29 +143,14 @@ class Img2ImgPipeline(StableDiffusionPipeline):
         **kwargs,
     ):
 
-        callback = kwargs.pop("callback", None)
-        callback_steps = kwargs.pop("callback_steps", None)
-
-        if callback is not None:
-            deprecate(
-                "callback",
-                "1.0.0",
-                "Passing `callback` as an input argument to `__call__` is deprecated, consider using `callback_on_step_end`",
-            )
-        if callback_steps is not None:
-            deprecate(
-                "callback_steps",
-                "1.0.0",
-                "Passing `callback_steps` as an input argument to `__call__` is deprecated, consider using `callback_on_step_end`",
-            )
-
+        # 1. Setup
         self._guidance_scale = guidance_scale
         self._guidance_rescale = guidance_rescale
         self._clip_skip = clip_skip
         self._cross_attention_kwargs = cross_attention_kwargs
         self._interrupt = False
 
-        # 2. Define call parameters
+        # 2. Get batch size
         if style_prompt is not None and isinstance(style_prompt, str):
             batch_size = 1
         elif style_prompt is not None and isinstance(style_prompt, list):
@@ -183,32 +162,37 @@ class Img2ImgPipeline(StableDiffusionPipeline):
         lora_scale = (
             self.cross_attention_kwargs.get("scale", None) if self.cross_attention_kwargs is not None else None
         )
-
-        style_prompt_embeds, style_negative_prompt_embeds = self.encode_prompt(
-            style_prompt,
-            num_images_per_prompt,
-            self.do_classifier_free_guidance,
-            negative_prompt,
-            prompt_embeds=prompt_embeds,
-            negative_prompt_embeds=negative_prompt_embeds,
-            lora_scale=lora_scale,
-            clip_skip=self.clip_skip,
-        )
+        # optimize for single prompt case
+        if origin_scale == 0.0:
+            # pure style, compile style_prompt
+            prompt_embeds, negative_prompt_embeds = self.encode_prompt(
+                style_prompt, num_images_per_prompt, self.do_classifier_free_guidance,
+                negative_prompt, prompt_embeds=prompt_embeds, negative_prompt_embeds=negative_prompt_embeds,
+                lora_scale=lora_scale, clip_skip=self.clip_skip,
+            )
+        elif origin_scale == 1.0:
+            # pure origin, compile origin_prompt
+            prompt_embeds, negative_prompt_embeds = self.encode_prompt(
+                origin_prompt, num_images_per_prompt, self.do_classifier_free_guidance,
+                negative_prompt, prompt_embeds=prompt_embeds, negative_prompt_embeds=negative_prompt_embeds,
+                lora_scale=lora_scale, clip_skip=self.clip_skip,
+            )
+        else:
+            # need to blend, encode twice and weight
+            style_embeds, style_neg_embeds = self.encode_prompt(
+                style_prompt, num_images_per_prompt, self.do_classifier_free_guidance,
+                negative_prompt, prompt_embeds=prompt_embeds, negative_prompt_embeds=negative_prompt_embeds,
+                lora_scale=lora_scale, clip_skip=self.clip_skip,
+            )
+            origin_embeds, origin_neg_embeds = self.encode_prompt(
+                origin_prompt, num_images_per_prompt, self.do_classifier_free_guidance,
+                negative_prompt, prompt_embeds=prompt_embeds, negative_prompt_embeds=negative_prompt_embeds,
+                lora_scale=lora_scale, clip_skip=self.clip_skip,
+            )
+            # Interpolation
+            prompt_embeds = style_embeds * (1 - origin_scale) + origin_embeds * origin_scale
+            negative_prompt_embeds = style_neg_embeds * (1 - origin_scale) + origin_neg_embeds * origin_scale
         
-        origin_prompt_embeds, origin_negative_prompt_embeds = self.encode_prompt(
-            origin_prompt,
-            num_images_per_prompt,
-            self.do_classifier_free_guidance,
-            negative_prompt,
-            prompt_embeds=prompt_embeds,
-            negative_prompt_embeds=negative_prompt_embeds,
-            lora_scale=lora_scale,
-            clip_skip=self.clip_skip,
-        )
-        
-        prompt_embeds = style_prompt_embeds * (1 - origin_scale) + origin_prompt_embeds * origin_scale
-        negative_prompt_embeds = style_negative_prompt_embeds * (1 - origin_scale) + origin_negative_prompt_embeds * origin_scale
-
         # For classifier free guidance, we need to do two forward passes.
         # Here we concatenate the unconditional and text embeddings into a single batch
         # to avoid doing two forward passes
@@ -220,28 +204,16 @@ class Img2ImgPipeline(StableDiffusionPipeline):
 
         # 5. Prepare timesteps
         timesteps, num_inference_steps = retrieve_timesteps(self.scheduler, num_inference_steps, timesteps)
-        timesteps, num_inference_steps = self.get_timesteps(
-            num_inference_steps,
-            strength,
-            denoising_start=None,
-        )
-        latent_timestep = timesteps[:1].repeat(batch_size * num_images_per_prompt)
-
-        add_noise = True
+        timesteps, num_inference_steps = self.get_timesteps(num_inference_steps, strength, denoising_start=None)
+        latent_timestep = jt.Var(timesteps[:1]).long().repeat(batch_size * num_images_per_prompt)
 
         # 6. Prepare latent variables
         latents = self.prepare_latents(
-            image,
-            latent_timestep,
-            batch_size,
-            num_images_per_prompt,
-            prompt_embeds.dtype,
-            
-            seed,
-            add_noise,
+            image, latent_timestep, batch_size, num_images_per_prompt,
+            prompt_embeds.dtype, seed=seed, add_noise=True, # add_noise=True
         )
     
-        # 6.2 Optionally get Guidance Scale Embedding
+        # 6.2 Guidance Scale Embedding (Optional)
         timestep_cond = None
         if self.unet.config.time_cond_proj_dim is not None:
             guidance_scale_tensor = jt.array(self.guidance_scale - 1).repeat(batch_size * num_images_per_prompt)
@@ -249,44 +221,22 @@ class Img2ImgPipeline(StableDiffusionPipeline):
                 guidance_scale_tensor, embedding_dim=self.unet.config.time_cond_proj_dim
             ).to(dtype=latents.dtype)
 
-        # 7. Prepare extra step kwargs. TODO: Logic should ideally just be moved out of the pipeline
+        # 7. Denoising loop (remove warmup steps)
         extra_step_kwargs = self.prepare_extra_step_kwargs(eta)
-
-        height, width = latents.shape[-2:]
-        height = height * self.vae_scale_factor
-        width = width * self.vae_scale_factor
-
-        original_size = (height, width)
-        target_size = (height, width)
-
-        # 8. Prepare added time ids & embeddings
-
-        prompt_embeds = prompt_embeds
-
-        # 9. Denoising loop
-        num_warmup_steps = len(timesteps) - num_inference_steps * self.scheduler.order
         self._num_timesteps = len(timesteps)
         with self.progress_bar(total=num_inference_steps) as progress_bar:
             for i, t in enumerate(timesteps):
-                if self.interrupt:
-                    continue
+                if self.interrupt: continue
 
-                # expand the latents if we are doing classifier free guidance
                 latent_model_input = jt.concat([latents] * 2) if self.do_classifier_free_guidance else latents
                 latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
 
-                # predict the noise residual
                 noise_pred = self.unet(
-                    latent_model_input,
-                    t,
-                    encoder_hidden_states=prompt_embeds,
-                    timestep_cond=timestep_cond,
-                    cross_attention_kwargs=self.cross_attention_kwargs,
-                    added_cond_kwargs=None,
+                    latent_model_input, t, encoder_hidden_states=prompt_embeds,
+                    timestep_cond=timestep_cond, cross_attention_kwargs=self.cross_attention_kwargs,
                     return_dict=False,
                 )[0]
 
-                # perform guidance
                 if self.do_classifier_free_guidance:
                     noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
                     noise_pred = noise_pred_uncond + self.guidance_scale * (noise_pred_text - noise_pred_uncond)
@@ -295,25 +245,15 @@ class Img2ImgPipeline(StableDiffusionPipeline):
                     # Based on 3.4. in https://arxiv.org/pdf/2305.08891.pdf
                     noise_pred = rescale_noise_cfg(noise_pred, noise_pred_text, guidance_rescale=self.guidance_rescale)
 
-                # compute the previous noisy sample x_t -> x_t-1
                 latents = self.scheduler.step(noise_pred, t, latents, **extra_step_kwargs, return_dict=False)[0]
 
                 if callback_on_step_end is not None:
-                    callback_kwargs = {}
-                    for k in callback_on_step_end_tensor_inputs:
-                        callback_kwargs[k] = locals()[k]
+                    callback_kwargs = {k: locals()[k] for k in callback_on_step_end_tensor_inputs}
                     callback_outputs = callback_on_step_end(self, i, t, callback_kwargs)
-
                     latents = callback_outputs.pop("latents", latents)
                     prompt_embeds = callback_outputs.pop("prompt_embeds", prompt_embeds)
-                    negative_prompt_embeds = callback_outputs.pop("negative_prompt_embeds", negative_prompt_embeds)
 
-                # call the callback, if provided
-                if i == len(timesteps) - 1 or ((i + 1) > num_warmup_steps and (i + 1) % self.scheduler.order == 0):
-                    progress_bar.update()
-                    if callback is not None and i % callback_steps == 0:
-                        step_idx = i // getattr(self.scheduler, "order", 1)
-                        callback(step_idx, t, latents)
+                progress_bar.update()
 
         if not output_type == "latent":
             image = self.vae.decode(latents / self.vae.config.scaling_factor, return_dict=False)[0]
@@ -328,8 +268,6 @@ class Img2ImgPipeline(StableDiffusionPipeline):
             do_denormalize = [not has_nsfw for has_nsfw in has_nsfw_concept]
 
         image = self.image_processor.postprocess(image, output_type=output_type, do_denormalize=do_denormalize)
-
-        # Offload all models
         self.maybe_free_model_hooks()
 
         if not return_dict:
