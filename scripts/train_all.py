@@ -105,15 +105,30 @@ def main():
     # 2. Start Worker processes
     processes = []
     active_gpu_ids = [1, 2, 3]
-    for gpu_id in active_gpu_ids:
-        p = Process(target=worker_process, args=(gpu_id, task_queue, base_config_dict))
-        p.start()
-        processes.append(p)
-        time.sleep(2) # Slightly stagger start times to avoid IO/VRAM spikes
+    try:
+        for gpu_id in active_gpu_ids:
+            p = Process(target=worker_process, args=(gpu_id, task_queue, base_config_dict))
+            p.start()
+            processes.append(p)
+            time.sleep(5) # Slightly stagger start times to avoid IO/VRAM spikes & Jittor compile conflicts
 
-    # 3. Wait for all processes to finish
-    for p in processes:
-        p.join()
+        for p in processes:
+            p.join()
+    except KeyboardInterrupt:
+        print("\n=== KeyboardInterrupt detected. Terminating all processes... ===")
+        for p in processes:
+            if p.is_alive():
+                print(f" - Killing Process {p.pid}...")
+                p.terminate()
+                p.join()
+        print("All processes terminated.")
+        exit(1)
+    except Exception as e:
+        print(f"[Manager] x Unexpected Error: {e}")
+        for p in processes:
+            if p.is_alive():
+                p.terminate()
+        exit(1)
 
     print("\n=== All training tasks have completed ===")
 

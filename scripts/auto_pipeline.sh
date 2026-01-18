@@ -15,6 +15,14 @@ HOST_EVAL_ENV="jdiff_eval"
 DOCKER_ENV_CMD="source /root/anaconda3/etc/profile.d/conda.sh && conda activate $DOCKER_RUN_ENV && cd $DOCKER_WORK_ROOT"
 # =================================================
 
+function clean_up() {
+    echo -e "\n\n[Pipeline] !!! INTERRUPTED !!! Killing processes..."
+    docker exec $CONTAINER_NAME pkill -INT -f "python scripts" || true
+    pkill -INT -f "python evaluation" || true
+    exit 1
+}
+trap clean_up SIGINT SIGTERM
+
 
 # Usage: ./auto_pipeline.sh 5
 NUM_STYLES=15

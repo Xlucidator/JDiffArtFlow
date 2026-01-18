@@ -15,7 +15,7 @@ project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(os.path.join(project_root, "src"))
 
 from custom_pipeline import Img2ImgPipeline
-from utils.config import load_config, set_seed
+from utils.config import load_config, set_seed, save_config
 from utils.image import get_avg_image
 
 
@@ -245,6 +245,8 @@ def run_single_task(taskid, yaml_config):
 
     del pipe
     jt.gc()
+
+    save_config(conf, mode="infer")
     print(f"[Worker] Style {taskid} Finished.")
 
 
