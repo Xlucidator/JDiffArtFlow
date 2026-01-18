@@ -1,5 +1,7 @@
 #!/bin/bash
 
+export PYTHONHASHSEED=42
+
 # ================= Configuration =================
 CONTAINER_NAME="jdiff_work" 
 
@@ -75,7 +77,7 @@ function activate_host_env() {
 function stage_train() {
     echo -e "\n[1/5] Start Training in Docker (train_all.py)..."
     timer_start
-    docker exec $CONTAINER_NAME /bin/bash -c "$DOCKER_ENV_CMD && python scripts/train_all.py -n $NUM_STYLES"
+    docker exec $CONTAINER_NAME /bin/bash -c "$DOCKER_ENV_CMD && python scripts/train_all_subprocess.py -n $NUM_STYLES"
     # docker exec $CONTAINER_NAME /bin/bash -c "$DOCKER_ENV_CMD && mkdir -p test_dir"
     timer_end "Training Stage"
 }
@@ -83,7 +85,7 @@ function stage_train() {
 function stage_infer() {
     echo -e "\n[2/5] Start Inference in Docker (infer_all.py)..."
     timer_start
-    docker exec $CONTAINER_NAME /bin/bash -c "$DOCKER_ENV_CMD && python scripts/infer_all.py -n $NUM_STYLES"
+    docker exec $CONTAINER_NAME /bin/bash -c "$DOCKER_ENV_CMD && python scripts/infer_all_subprocess.py -n $NUM_STYLES"
     # docker exec $CONTAINER_NAME /bin/bash -c "$DOCKER_ENV_CMD && ls -l test_dir"
     timer_end "Inference Stage"
 }

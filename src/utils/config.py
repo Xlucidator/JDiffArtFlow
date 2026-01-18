@@ -24,7 +24,7 @@ def set_seed(seed):
     import jittor as jt
     import os
     random.seed(seed)
-    os.environ['PYTHONHASHSEED'] = str(seed)
+    # os.environ['PYTHONHASHSEED'] = str(seed)
     np.random.seed(seed)
     jt.set_global_seed(seed)
     print(f"Global Seed set to {seed}")

@@ -17,11 +17,11 @@ class DreamBoothDataset(Dataset):
         self.class_prompt_encoder_hidden_states = None
         self.tokenizer_max_length = config.tokenizer_max_length
 
+        # Dealing with instance images
         self.instance_data_root = Path(config.instance_data_dir)
         if not self.instance_data_root.exists():
             raise ValueError(f"Instance images root doesn't exists: {self.instance_data_root}")
-        
-        self.instance_images_path = list(self.instance_data_root.iterdir())
+        self.instance_images_path = sorted(list(self.instance_data_root.iterdir()))
         self.num_instance_images = len(self.instance_images_path)
         self.instance_prompt = config.instance_prompt
         self._length = self.num_instance_images
@@ -30,16 +30,25 @@ class DreamBoothDataset(Dataset):
         if config.with_prior_preservation and config.class_data_dir is not None:
             self.class_data_root = Path(config.class_data_dir)
             self.class_data_root.mkdir(parents=True, exist_ok=True)
-            self.class_images_path = list(self.class_data_root.iterdir())
+            self.class_images_path = sorted(list(self.class_data_root.iterdir()))
             self.num_class_images = min(len(self.class_images_path), config.num_class_images)
             self._length = max(self.num_class_images, self.num_instance_images)
             self.class_prompt = config.class_prompt
         else:
             self.class_data_root = None
 
-        self.image_transforms = transform.Compose([
-            transform.Resize(config.resolution),
+        # Define image transforms
+        self.train_transforms = transform.Compose([
+            transform.Resize(int(config.resolution * 1.04)),
             transform.CenterCrop(config.resolution) if config.center_crop else transform.RandomCrop(config.resolution),
+            transform.RandomHorizontalFlip(p=0.5) if config.do_augmentation else transform.Lambda(lambda x: x),
+            transform.RandomRotation(degrees=10) if config.do_augmentation else transform.Lambda(lambda x: x),
+            transform.ToTensor(),
+            transform.ImageNormalize([0.5], [0.5]),
+        ])
+        self.class_transforms = transform.Compose([
+            transform.Resize(config.resolution),
+            transform.CenterCrop(config.resolution),
             transform.ToTensor(),
             transform.ImageNormalize([0.5], [0.5]),
         ])
@@ -71,7 +80,7 @@ class DreamBoothDataset(Dataset):
 
         # Create Instance Example
         instance_example = {
-            "pixel_values": self.image_transforms(instance_image),
+            "pixel_values": self.train_transforms(instance_image),
             "input_ids": text_inputs.input_ids,
             "attention_mask": text_inputs.attention_mask, 
         }
@@ -93,7 +102,7 @@ class DreamBoothDataset(Dataset):
             
             # Create Class Example
             class_example = {
-                "pixel_values": self.image_transforms(class_image),
+                "pixel_values": self.class_transforms(class_image),
                 "input_ids": class_text_inputs.input_ids,
                 "attention_mask": class_text_inputs.attention_mask,
             }
