@@ -3,40 +3,32 @@
 风格迁移图像生成模型
 
 
-## How to Run
+## 快速开始
 
-### Train & Generate
+### 环境准备
 
-准备Docker环境，修正jittor依赖
+训练和推理：
 
-根据 `scripts` 中说明，添加peft依赖
-```bash
-pip install accelerate==0.27.2
-pip install peft==0.10.0
-```
-
-正式训练和生成
+使用官方docker镜像，然后创建docker环境
 ```bash
 # project root
-./docker_env.sh enter # 进入docker环境
-cd scripts
-
-bash train_all.sh  # 训练
-python run_all.py  # 生成
+./docker_env.sh start
 ```
 
-### Evaluation
+评分：
 
-准备测评环境
+创建conda环境
 ```bash
 conda create -n jdiff_eval python=3.9 -y
 conda activate jdiff_eval
-pip install -r requirements.txt
+pip install -r evaluation/requirements.txt
 ```
 
-正式测评
+### 训练 & 推理 & 评分
+
 ```bash
-conda activate jdiff_eval
-cd evaluation
-python run_eval.py
+# project root
+bash scripts/auto_pipeline.sh 15
 ```
+
+然后就可以等待生成
