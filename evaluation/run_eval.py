@@ -19,7 +19,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def run_evaluation(exp_name, num_styles):
+def run_evaluation(exp_name, num_styles, gpu_id=1):
     checker_dir = os.path.join(eval_dir, "jdiff_checker")
     script_name = "score_api.py"
     exp_path = os.path.join(outputs_dir, exp_name)
@@ -47,9 +47,11 @@ def run_evaluation(exp_name, num_styles):
         "--result_path", scores_path,
         "--ref_style_numbers", str(num_styles)
     ]
+    current_env = os.environ.copy()
+    current_env["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
 
     try:
-        subprocess.run(cmd, cwd=checker_dir, check=True)
+        subprocess.run(cmd, cwd=checker_dir, check=True, env=current_env)
         print(f"[Launcher] Evaluation completed successfully. saved to {scores_path}")
     except subprocess.CalledProcessError as e:
         print(f"[Launcher] Evaluation failed with error: {e}")

@@ -8,7 +8,7 @@ outputs_path = os.path.join(project_root, "outputs")
 
 def compute_final_score(metrics):
     """
-    compute_final_score with the formula: (Style Similarity) × (Text Consistency + Image Quality)
+    compute_final_score with the formula: (Style Similarity) x (Text Consistency + Image Quality)
     args:
         - metrics (dict): containing 'dino_score', 'lpip_score', 'clip_r_score', 'fid_score', 'clip_iqa_score'
     returns:
@@ -76,6 +76,38 @@ def print_report(final_score, components):
     print("="*40 + "\n")
 
 
+def generate_report_content(metrics, final_score, components):
+    lines = []
+    
+    # === Part 1: Raw Metrics Table ===
+    lines.append("=" * 50)
+    lines.append(f"{'METRIC NAME':<26}| {'SCORE'}")
+    lines.append("-" * 50)
+    
+    metric_keys = ['dino_score', 'hist_score', 'fid_score', 'lpip_score', 'clip_iqa_score', 'clip_r_score']
+    # metric_keys = ['dino_score ↑', 'hist_score ↑', 'fid_score ↓', 'lpip_score ↓', 'clip_iqa_score ↑', 'clip_r_score ↑']
+    for key in metric_keys:
+        val = metrics.get(key, 0.0)
+        lines.append(f"{key:<26}| {val:.6f}")
+    
+    lines.append("=" * 50)
+    lines.append("") 
+    lines.append("") 
+
+    # === Part 2: Calculated Component Report ===
+    lines.append("=" * 40)
+    lines.append(f"{'Score Report':^40}")
+    lines.append("=" * 40)
+    lines.append(f"1. Style Component   : {components['style_component']:.4f}")
+    lines.append(f"2. Text Component    : {components['text_component']:.4f}")
+    lines.append(f"3. Quality Component : {components['quality_component']:.4f}")
+    lines.append("-" * 40)
+    lines.append(f"  Final Score: {final_score:.6f}")
+    lines.append("=" * 40)
+    
+    return "\n".join(lines)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-e", "--exp_name", type=str, default=".")
@@ -90,4 +122,13 @@ if __name__ == "__main__":
         data = json.load(f)
     
     final_score, components = compute_final_score(data)
-    print_report(final_score, components)
+    report_content = generate_report_content(data, final_score, components)
+
+    print("\n" + report_content + "\n")
+    output_file_path = os.path.join(outputs_path, "score.txt")
+    try:
+        with open(output_file_path, "w", encoding="utf-8") as f:
+            f.write(report_content)
+        print(f"[Success] Report saved to: {output_file_path}")
+    except Exception as e:
+        print(f"[Error] Failed to save report: {e}")

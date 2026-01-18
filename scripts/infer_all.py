@@ -114,7 +114,7 @@ def main():
     print(f"Total Tasks: {args.num_styles}")
 
     # 2. Start Worker processes
-    active_gpu_ids = [2, 3]
+    active_gpu_ids = [1, 2, 3]
     print(f"Use GPUs: {active_gpu_ids}")
     processes = []
     for gpu_id in active_gpu_ids:

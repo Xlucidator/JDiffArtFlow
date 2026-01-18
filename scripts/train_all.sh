@@ -14,7 +14,7 @@ LR_WARMUP_STEPS=0
 MAX_TRAIN_STEPS=500
 SEED=0
 GPU_COUNT=4
-MAX_NUM=15
+MAX_NUM=1
 
 for ((folder_number = 0; folder_number < $MAX_NUM; folder_number+=$GPU_COUNT)); do
     for ((gpu_id = 0; gpu_id < GPU_COUNT; gpu_id++)); do

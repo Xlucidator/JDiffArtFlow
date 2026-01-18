@@ -104,7 +104,7 @@ def main():
 
     # 2. Start Worker processes
     processes = []
-    active_gpu_ids = [2, 3]
+    active_gpu_ids = [1, 2, 3]
     for gpu_id in active_gpu_ids:
         p = Process(target=worker_process, args=(gpu_id, task_queue, base_config_dict))
         p.start()
