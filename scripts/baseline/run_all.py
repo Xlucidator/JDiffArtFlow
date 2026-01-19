@@ -13,7 +13,7 @@ import argparse
 import traceback
 
 
-project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 src_dir = os.path.join(project_root, "src")
 sys.path.append(src_dir)
 from custom_pipeline import Img2ImgPipeline
