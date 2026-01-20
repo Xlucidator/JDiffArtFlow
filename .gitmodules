@@ -1,0 +1,3 @@
+[submodule "JDiffusion"]
+	path = JDiffusion
+	url = https://github.com/JittorRepos/JDiffusion.git
